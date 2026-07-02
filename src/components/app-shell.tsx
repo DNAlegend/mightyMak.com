@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Film, FolderOpen, LogOut, Plus, Coins, UserCircle, Zap, Sparkles } from "lucide-react";
+import { Film, FolderOpen, LogOut, Plus, Coins, UserCircle, Sparkles } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Button, Modal, Badge } from "@/components/ui";
 import { AuthModal } from "@/components/auth/auth-modal";
+import { LogoMark } from "@/components/logo";
 
 const NAV = [
   { href: "/app", label: "Make", icon: Sparkles },
@@ -25,9 +26,7 @@ const CREDIT_PACKS = [
 function Brand() {
   return (
     <Link href="/app" className="flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-teal shadow-[0_6px_18px_-6px_rgba(124,108,255,0.9)]">
-        <Zap size={18} className="text-white" fill="white" />
-      </span>
+      <LogoMark size={36} className="drop-shadow-[0_6px_14px_rgba(124,108,255,0.45)]" />
       <span className="text-[17px] font-extrabold tracking-tight text-fg">MightyMak</span>
     </Link>
   );

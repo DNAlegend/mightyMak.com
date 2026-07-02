@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
-  Zap,
   Sparkles,
   FolderOpen,
   Film,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui";
+import { LogoMark } from "@/components/logo";
 import { HERO, HERO_CHIPS, HERO_PROMPT, SHOWCASE, type ShowcaseMedia } from "@/lib/showcase";
 import { DEMO_CONTENT, generatedSrc, type DemoItem } from "@/lib/demo-content";
 
@@ -78,9 +78,7 @@ function MediaTile({ m, className }: { m: ShowcaseMedia; className?: string }) {
 function Brand() {
   return (
     <Link href="/" className="flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-teal shadow-[0_6px_18px_-6px_rgba(124,108,255,0.9)]">
-        <Zap size={18} className="text-white" fill="white" />
-      </span>
+      <LogoMark size={36} className="drop-shadow-[0_6px_14px_rgba(124,108,255,0.45)]" />
       <span className="text-[17px] font-extrabold tracking-tight text-fg">MightyMak</span>
     </Link>
   );
