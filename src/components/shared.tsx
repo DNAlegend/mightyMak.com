@@ -225,7 +225,14 @@ export function ResultHero({ job }: { job: VideoJob }) {
         {!isImage && <Badge tone="accent">{TIERS[job.tier].label}</Badge>}
         {!isImage && <Badge>{job.durationSec}s</Badge>}
         <Badge>{job.aspectRatio}</Badge>
+        {job.simulated && <Badge tone="neutral">Sample preview</Badge>}
       </div>
+      {job.simulated && (
+        <p className="text-xs text-faint">
+          This is a demo sample clip, not a real render — sign in on a deployment with the
+          Seedance model configured to generate for real.
+        </p>
+      )}
     </div>
   );
 }

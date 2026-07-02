@@ -202,6 +202,7 @@ function startSimulatedRender(set: StoreSet, get: () => StoreState, job: VideoJo
       const result: Partial<VideoJob> = {
         status: "succeeded",
         progress: 100,
+        simulated: true,
         // Image models produce a still; video models produce a clip.
         videoUrl: job.modality === "image" ? undefined : sample.video,
         posterUrl: job.posterUrl ?? sample.poster,

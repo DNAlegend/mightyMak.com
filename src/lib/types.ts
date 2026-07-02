@@ -107,6 +107,8 @@ export interface VideoJob {
   error?: string;
   elements?: string[];
   direction?: string;
+  /** True when the result is a demo sample clip, not real model output. */
+  simulated?: boolean;
 }
 
 export const TIERS: Record<
