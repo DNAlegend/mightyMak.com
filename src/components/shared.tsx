@@ -83,16 +83,19 @@ export function ModelPicker({
   modelId,
   onModality,
   onModel,
+  lockModality = false,
 }: {
   modality: Modality;
   modelId: string;
   onModality: (m: Modality) => void;
   onModel: (id: string) => void;
+  /** Hide the Video/Image toggle (dedicated generator pages). */
+  lockModality?: boolean;
 }) {
   const models = listModels({ modality });
   return (
     <div>
-      <div className="mb-3 inline-flex rounded-xl border border-line bg-surface-2 p-1">
+      <div className={cn("mb-3 inline-flex rounded-xl border border-line bg-surface-2 p-1", lockModality && "hidden")}>
         {MODALITIES.map((m) => (
           <button
             key={m.value}
@@ -191,6 +194,22 @@ export function ResultHero({ job }: { job: VideoJob }) {
           <Progress value={job.progress} />
         </div>
         <p className="mt-1.5 text-xs tabular-nums text-faint">{job.progress}%</p>
+      </div>
+    );
+  }
+
+  if (job.status === "failed") {
+    return (
+      <div
+        className={cn(
+          "flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-danger/30 bg-surface-2 p-6 text-center",
+          aspectClass[ar],
+        )}
+      >
+        <p className="text-sm font-semibold text-danger">Generation failed</p>
+        <p className="max-w-md break-words text-xs leading-relaxed text-muted">
+          {job.error ?? "Something went wrong — your credits were not spent."}
+        </p>
       </div>
     );
   }

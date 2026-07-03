@@ -37,7 +37,7 @@ import { AssetThumb, ClassIcon, ModelPicker, ResultHero, CompositeBadge } from "
 
 type Picks = Partial<Record<AssetClass, string>>;
 
-export function MakeView() {
+export function MakeView({ mode }: { mode?: Modality }) {
   const credits = useStore((s) => s.credits);
   const hydrated = useStore((s) => s.hasHydrated);
   const assets = useStore((s) => s.assets);
@@ -53,13 +53,14 @@ export function MakeView() {
 
   const byId = useMemo(() => Object.fromEntries(assets.map((a) => [a.id, a])), [assets]);
 
-  const [purposeId, setPurposeId] = useState<string>(DEFAULT_PURPOSE_ID);
-  const [modality, setModality] = useState<Modality>("video");
-  const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID);
+  const initialPurpose = PURPOSE_BY_ID[mode === "image" ? "still" : DEFAULT_PURPOSE_ID];
+  const [purposeId, setPurposeId] = useState<string>(initialPurpose.id);
+  const [modality, setModality] = useState<Modality>(initialPurpose.modality);
+  const [modelId, setModelId] = useState<string>(initialPurpose.modelId || DEFAULT_MODEL_ID);
   const [prompt, setPrompt] = useState("");
   const [picks, setPicks] = useState<Picks>({});
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
-  const [durationSec, setDurationSec] = useState<number>(5);
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(initialPurpose.aspectRatio);
+  const [durationSec, setDurationSec] = useState<number>(initialPurpose.durationSec);
   const [tier, setTier] = useState<Tier>("standard");
   const [audio, setAudio] = useState(true);
   const [showAssets, setShowAssets] = useState(false);
@@ -100,7 +101,13 @@ export function MakeView() {
     // Landing links arrive as ?purpose=…&prompt=… — preconfigure the studio.
     const params = new URLSearchParams(window.location.search);
     const linkedPurpose = params.get("purpose");
-    if (linkedPurpose && PURPOSE_BY_ID[linkedPurpose]) applyPurpose(linkedPurpose);
+    if (
+      linkedPurpose &&
+      PURPOSE_BY_ID[linkedPurpose] &&
+      (!mode || PURPOSE_BY_ID[linkedPurpose].modality === mode)
+    ) {
+      applyPurpose(linkedPurpose);
+    }
     const linked = params.get("prompt");
     if (linked) setPrompt(linked);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -118,11 +125,20 @@ export function MakeView() {
   }
 
   const purpose = PURPOSE_BY_ID[purposeId] ?? PURPOSE_BY_ID[DEFAULT_PURPOSE_ID];
+  // Dedicated generator pages only offer purposes of their modality.
+  const availablePurposes = PURPOSES.filter((p) => !mode || p.modality === mode);
   // Surface this purpose's asset classes first; the rest stay available.
   const orderedClasses = [
     ...purpose.classes,
     ...ASSET_CLASSES.map((c) => c.key).filter((k) => !purpose.classes.includes(k)),
   ];
+
+  const heading =
+    mode === "video"
+      ? { kicker: "Video", h1: "Direct your shot", sub: "Pick a purpose, choose your Seedance model, and roll." }
+      : mode === "image"
+        ? { kicker: "Image", h1: "Design your frame", sub: "Pick a purpose, choose your Seedream model, and render." }
+        : { kicker: "Make", h1: "What are you making today?", sub: "Pick a purpose — the studio sets the format, model and building blocks for you." };
 
   const model = getModel(modelId);
   const pickedAssets = ASSET_CLASSES.map((c) => picks[c.key])
@@ -147,9 +163,9 @@ export function MakeView() {
   const pickedCount = pickedAssets.length;
 
   function switchModality(m: Modality) {
-    setModality(m);
-    const first = listModels({ modality: m, enabledOnly: true })[0];
-    if (first) setModelId(first.id);
+    // Flipping the toggle on the universal Make page re-anchors the purpose
+    // so format and model stay coherent with the chosen modality.
+    applyPurpose(m === "image" ? "still" : "custom");
   }
 
   function setPick(cls: AssetClass, id: string | null) {
@@ -201,17 +217,15 @@ export function MakeView() {
     <div className="mx-auto max-w-3xl">
       <header className="mb-5 text-center">
         <div className="mb-1.5 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent-2">
-          <Sparkles size={14} /> Make
+          <Sparkles size={14} /> {heading.kicker}
         </div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">What are you making today?</h1>
-        <p className="mt-1.5 text-sm text-muted">
-          Pick a purpose — the studio sets the format, model and building blocks for you.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{heading.h1}</h1>
+        <p className="mt-1.5 text-sm text-muted">{heading.sub}</p>
       </header>
 
       {/* Purpose picker */}
       <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1.5">
-        {PURPOSES.map((p) => (
+        {availablePurposes.map((p) => (
           <button
             key={p.id}
             onClick={() => applyPurpose(p.id)}
@@ -316,7 +330,13 @@ export function MakeView() {
           {/* Model picker */}
           <div className="mt-5 border-t border-line pt-5">
             <div className="mb-3 text-xs font-medium uppercase tracking-wide text-faint">Model</div>
-            <ModelPicker modality={modality} modelId={modelId} onModality={switchModality} onModel={setModelId} />
+            <ModelPicker
+              modality={modality}
+              modelId={modelId}
+              onModality={switchModality}
+              onModel={setModelId}
+              lockModality={!!mode}
+            />
           </div>
 
           {/* Options (disclosed) */}

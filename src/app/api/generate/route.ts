@@ -28,6 +28,13 @@ const IMAGE_SIZE: Record<string, string> = {
   "1:1": "1024x1024",
 };
 
+// Seedream 4.5/5.0 reject canvases under ~3.7MP — they render at 2K.
+const IMAGE_SIZE_2K: Record<string, string> = {
+  "16:9": "2560x1440",
+  "9:16": "1440x2560",
+  "1:1": "1920x1920",
+};
+
 function userClient(req: Request): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -119,7 +126,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         model: model.arkModel,
         prompt,
-        size: IMAGE_SIZE[aspectRatio],
+        size: (model.arkSize === "2k" ? IMAGE_SIZE_2K : IMAGE_SIZE)[aspectRatio],
         response_format: "b64_json",
         watermark: false,
       }),
