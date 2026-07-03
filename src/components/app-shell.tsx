@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Film, FolderOpen, LogOut, Plus, Coins, UserCircle, Sparkles } from "lucide-react";
+import { Film, FolderOpen, LogOut, Plus, Coins, UserCircle, UserRound, Sparkles } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { LogoMark } from "@/components/logo";
 
 const NAV = [
   { href: "/app", label: "Make", icon: Sparkles },
+  { href: "/app/characters", label: "Characters", icon: UserRound },
   { href: "/app/assets", label: "Assets", icon: FolderOpen },
   { href: "/app/library", label: "Library", icon: Film },
 ];
