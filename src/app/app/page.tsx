@@ -1,5 +1,6 @@
 import { MakeView } from "@/components/make/make-view";
 
-export default function MakePage() {
-  return <MakeView />;
+// The app's home IS the video generator — one obvious place to start.
+export default function AppHomePage() {
+  return <MakeView mode="video" />;
 }

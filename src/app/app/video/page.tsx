@@ -1,5 +1,6 @@
-import { MakeView } from "@/components/make/make-view";
+import { redirect } from "next/navigation";
 
-export default function VideoGeneratorPage() {
-  return <MakeView mode="video" />;
+// The video generator lives at /app now. Preserve old links.
+export default function VideoPage() {
+  redirect("/app");
 }

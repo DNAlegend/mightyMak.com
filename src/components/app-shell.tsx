@@ -12,8 +12,7 @@ import { AuthModal } from "@/components/auth/auth-modal";
 import { LogoMark } from "@/components/logo";
 
 const NAV = [
-  { href: "/app", label: "Make", icon: Sparkles },
-  { href: "/app/video", label: "Video", icon: Clapperboard },
+  { href: "/app", label: "Video", icon: Clapperboard },
   { href: "/app/image", label: "Image", icon: ImageIcon },
   { href: "/app/characters", label: "Characters", icon: UserRound },
   { href: "/app/assets", label: "Assets", icon: FolderOpen },

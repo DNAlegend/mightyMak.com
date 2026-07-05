@@ -15,7 +15,6 @@ import {
   Check,
   ArrowRight,
   Layers,
-  Clapperboard,
   ImagePlus,
   Undo2,
 } from "lucide-react";
@@ -142,11 +141,9 @@ export function MakeView({ mode }: { mode?: Modality }) {
   ];
 
   const heading =
-    mode === "video"
-      ? { kicker: "Video", h1: "Direct your shot", sub: "Pick a purpose, choose your Seedance model, and roll." }
-      : mode === "image"
-        ? { kicker: "Image", h1: "Design your frame", sub: "Pick a purpose, choose your Seedream model, and render." }
-        : { kicker: "Make", h1: "What are you making today?", sub: "Pick a purpose — the studio sets the format, model and building blocks for you." };
+    mode === "image"
+      ? { kicker: "Image", h1: "Design your frame", sub: "Pick what you're making, type your idea, Generate." }
+      : { kicker: "Video", h1: "Direct your shot", sub: "Pick what you're making, type your idea, Generate." };
 
   const model = getModel(modelId);
   const pickedAssets = ASSET_CLASSES.map((c) => picks[c.key])
@@ -310,11 +307,11 @@ export function MakeView({ mode }: { mode?: Modality }) {
             >
               {directing ? (
                 <>
-                  <Loader2 size={14} className="animate-spin" /> Directing…
+                  <Loader2 size={14} className="animate-spin" /> Improving…
                 </>
               ) : (
                 <>
-                  <Clapperboard size={14} /> Director: write my prompt
+                  <Wand2 size={14} /> Improve prompt
                 </>
               )}
             </Button>
@@ -328,13 +325,10 @@ export function MakeView({ mode }: { mode?: Modality }) {
                   setDraftBackup(null);
                 }}
               >
-                <Undo2 size={13} /> Restore my draft
+                <Undo2 size={13} /> Undo
               </Button>
             )}
-            <span className="text-[11.5px] text-faint">
-              Write your idea in any language — عربي, 中文, español… the Director turns it into a
-              pro prompt you can edit.
-            </span>
+            <span className="text-[11.5px] text-faint">Any language — عربي · 中文 · English</span>
           </div>
           {directorError && <p className="mt-1.5 text-xs text-danger">{directorError}</p>}
 
@@ -399,16 +393,16 @@ export function MakeView({ mode }: { mode?: Modality }) {
               </div>
             )}
 
-            {modality === "video" && (
+            {modality === "video" && (showAssets || refImageUrls.length > 0) && (
               <p className="mt-3 flex items-center gap-1.5 text-[11.5px] text-faint">
                 <ImagePlus size={13} className="shrink-0" />
                 {refImageUrls.length > 0
-                  ? `${refImageUrls.length} of ${REF_IMAGE_LIMIT} reference images attached — Seedance follows your images plus the text.`
-                  : `Picked assets steer the video: 1 image sets the first frame, up to ${REF_IMAGE_LIMIT} act as references.`}
+                  ? `${refImageUrls.length} of ${REF_IMAGE_LIMIT} reference images attached`
+                  : `1 image sets the first frame · up to ${REF_IMAGE_LIMIT} steer the look`}
               </p>
             )}
 
-            {finalPrompt && finalPrompt !== prompt.trim() && (
+            {pickedCount > 0 && finalPrompt && (
               <div className="mt-3 rounded-xl border border-line bg-surface-2 p-3">
                 <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-faint">
                   What the model will be told
@@ -418,29 +412,31 @@ export function MakeView({ mode }: { mode?: Modality }) {
             )}
           </div>
 
-          {/* Model picker */}
-          <div className="mt-5 border-t border-line pt-5">
-            <div className="mb-3 text-xs font-medium uppercase tracking-wide text-faint">Model</div>
-            <ModelPicker
-              modality={modality}
-              modelId={modelId}
-              onModality={switchModality}
-              onModel={setModelId}
-              lockModality={!!mode}
-            />
-          </div>
-
-          {/* Options (disclosed) */}
+          {/* Model & options (disclosed; the purpose already set sane defaults) */}
           <div className="mt-4 border-t border-line pt-4">
             <button
               onClick={() => setShowOptions((v) => !v)}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-fg"
+              className="flex w-full items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-fg"
             >
               <ChevronDown size={15} className={cn("transition-transform", showOptions && "rotate-180")} /> Options
+              <span className="ml-auto text-[12px] font-normal text-faint">
+                {getModel(modelId).name} · {aspectRatio}
+                {modality === "video" ? ` · ${durationSec}s` : ""}
+              </span>
             </button>
 
             {showOptions && (
               <div className="mt-4 space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted">Model</label>
+                  <ModelPicker
+                    modality={modality}
+                    modelId={modelId}
+                    onModality={switchModality}
+                    onModel={setModelId}
+                    lockModality={!!mode}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-muted">Aspect</label>
