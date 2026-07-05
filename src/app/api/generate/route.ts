@@ -152,22 +152,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: "succeeded", posterUrl: publicUrl, credits: balance, cost });
   }
 
-  // Video: async Ark task + polling via GET. A public https reference image
-  // (a picked asset) becomes the first frame — image-to-video.
+  // Video: async Ark task + polling via GET. Picked assets' public images
+  // steer the render: one image = the first frame (i2v); several = named
+  // reference images (Seedance 2.0 r2v mode, hard cap of 9).
   const flags = ` --resolution ${model.arkResolution ?? "720p"} --duration ${durationSec} --ratio ${aspectRatio} --watermark false`;
-  const refImageUrl =
-    typeof body.refImageUrl === "string" && /^https:\/\/.+/i.test(body.refImageUrl)
-      ? body.refImageUrl
-      : null;
+  const rawRefs: unknown[] = Array.isArray(body.refImageUrls)
+    ? body.refImageUrls
+    : typeof body.refImageUrl === "string"
+      ? [body.refImageUrl]
+      : [];
+  const refImageUrls = rawRefs
+    .filter((u): u is string => typeof u === "string" && /^https:\/\/.+/i.test(u))
+    .slice(0, 9);
   const content: Array<Record<string, unknown>> = [{ type: "text", text: prompt + flags }];
-  if (refImageUrl) content.push({ type: "image_url", image_url: { url: refImageUrl } });
+  if (refImageUrls.length === 1) {
+    content.push({ type: "image_url", image_url: { url: refImageUrls[0] } });
+  } else {
+    for (const u of refImageUrls) {
+      content.push({ type: "image_url", image_url: { url: u }, role: "reference_image" });
+    }
+  }
 
   let res = await fetch(`${ARK_BASE}/contents/generations/tasks`, {
     method: "POST",
     headers: arkHeaders(),
     body: JSON.stringify({ model: model.arkModel, content }),
   });
-  if (!res.ok && refImageUrl) {
+  if (!res.ok && refImageUrls.length > 0) {
     // The reference image may be unreachable/unsupported — retry text-only.
     res = await fetch(`${ARK_BASE}/contents/generations/tasks`, {
       method: "POST",

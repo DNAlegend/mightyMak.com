@@ -82,9 +82,15 @@ export interface GenerateParams {
   elements?: string[];
   direction?: string;
   posterUrl?: string;
-  /** Public https image used as the video's first-frame reference (i2v). */
-  refImageUrl?: string;
+  /**
+   * Public https images steering the video. One image = the first frame;
+   * several = reference images (Seedance 2.0 accepts up to REF_IMAGE_LIMIT).
+   */
+  refImageUrls?: string[];
 }
+
+/** Seedance 2.0's hard cap on reference images per video generation. */
+export const REF_IMAGE_LIMIT = 9;
 
 /**
  * A generation record. Despite the legacy name it holds both video and image
@@ -113,8 +119,8 @@ export interface VideoJob {
   simulated?: boolean;
   /** Ark task id for real renders — lets a reload resume polling. */
   taskId?: string;
-  /** First-frame reference image for the render (public https URL). */
-  refImageUrl?: string;
+  /** Reference images steering the render (public https URLs). */
+  refImageUrls?: string[];
 }
 
 export const TIERS: Record<

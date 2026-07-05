@@ -15,6 +15,9 @@ import {
   Check,
   ArrowRight,
   Layers,
+  Clapperboard,
+  ImagePlus,
+  Undo2,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { cloudConfigured } from "@/lib/supabase";
@@ -24,6 +27,7 @@ import { PURPOSES, PURPOSE_BY_ID, DEFAULT_PURPOSE_ID } from "@/lib/purposes";
 import {
   ASPECT_RATIOS,
   DURATIONS,
+  REF_IMAGE_LIMIT,
   TIERS,
   type AspectRatio,
   type Asset,
@@ -31,6 +35,7 @@ import {
   type Modality,
   type Tier,
 } from "@/lib/types";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Button, Card, Badge, Segmented, Toggle, Modal } from "@/components/ui";
 import { AssetThumb, ClassIcon, ModelPicker, ResultHero, CompositeBadge } from "@/components/shared";
@@ -68,6 +73,9 @@ export function MakeView({ mode }: { mode?: Modality }) {
   const [pickClass, setPickClass] = useState<AssetClass | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState(false);
+  const [directing, setDirecting] = useState(false);
+  const [directorError, setDirectorError] = useState<string | null>(null);
+  const [draftBackup, setDraftBackup] = useState<string | null>(null);
   const cloudUser = useStore((s) => s.cloudUser);
   const setAuthOpen = useStore((s) => s.setAuthOpen);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -177,25 +185,60 @@ export function MakeView({ mode }: { mode?: Modality }) {
     if (activeJob) resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [activeJob?.status === "succeeded", !!activeJob]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Every picked visual asset with a publicly reachable image can steer the
+  // video (one = first frame, several = Seedance reference images).
+  const refImageUrls =
+    modality === "video"
+      ? pickedAssets
+          .filter(
+            (a) =>
+              a.kind === "image" &&
+              (a.url.startsWith("https://") ||
+                (a.url.startsWith("/") &&
+                  typeof window !== "undefined" &&
+                  window.location.protocol === "https:")),
+          )
+          .slice(0, REF_IMAGE_LIMIT)
+          .map((a) => (a.url.startsWith("/") ? window.location.origin + a.url : a.url))
+      : [];
+
+  async function onDirect() {
+    if (needsSignIn) {
+      setAuthOpen(true);
+      return;
+    }
+    const brief = prompt.trim();
+    if (!brief || directing) return;
+    setDirecting(true);
+    setDirectorError(null);
+    try {
+      const token = (await supabase?.auth.getSession())?.data.session?.access_token;
+      if (!token) throw new Error("Please sign in first");
+      const res = await fetch("/api/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          brief,
+          modality,
+          purpose: purpose.id === "custom" ? null : `${purpose.label} — ${purpose.tagline}`,
+          assets: pickedAssets.map((a) => a.promptFragment ?? a.name),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.prompt) throw new Error(data.error ?? "The Director is unavailable");
+      setDraftBackup(brief);
+      setPrompt(data.prompt);
+    } catch (e) {
+      setDirectorError(e instanceof Error ? e.message : "The Director is unavailable");
+    } finally {
+      setDirecting(false);
+    }
+  }
+
   function onGenerate() {
     if (!canGenerate || rendering) return;
     const scene = pickedAssets.find((a) => a.class === "scene");
     const posterUrl = (scene ?? pickedAssets[0])?.posterUrl ?? (scene ?? pickedAssets[0])?.url;
-    // First picked visual asset with a public URL drives the first frame (i2v).
-    const refAsset =
-      modality === "video"
-        ? pickedAssets.find(
-            (a) =>
-              a.kind === "image" &&
-              (a.url.startsWith("https://") ||
-                (a.url.startsWith("/") && window.location.protocol === "https:")),
-          )
-        : undefined;
-    const refImageUrl = refAsset
-      ? refAsset.url.startsWith("/")
-        ? window.location.origin + refAsset.url
-        : refAsset.url
-      : undefined;
     const id = generate({
       prompt: finalPrompt,
       tier,
@@ -207,7 +250,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
       elements: pickedAssets.map((a) => a.id),
       direction: prompt,
       posterUrl,
-      refImageUrl,
+      refImageUrls: refImageUrls.length ? refImageUrls : undefined,
     });
     setActiveJobId(id);
     setSavedMsg(false);
@@ -255,6 +298,45 @@ export function MakeView({ mode }: { mode?: Modality }) {
             placeholder={purpose.placeholder}
             className="w-full resize-none rounded-xl border border-line bg-surface-2 p-3.5 text-[15px] leading-relaxed text-fg placeholder:text-faint focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
+
+          {/* The Director — any language in, pro English prompt out */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <Button
+              variant="soft"
+              size="sm"
+              disabled={directing || !prompt.trim()}
+              onClick={onDirect}
+              className="gap-1.5"
+            >
+              {directing ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Directing…
+                </>
+              ) : (
+                <>
+                  <Clapperboard size={14} /> Director: write my prompt
+                </>
+              )}
+            </Button>
+            {draftBackup && draftBackup !== prompt && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1"
+                onClick={() => {
+                  setPrompt(draftBackup);
+                  setDraftBackup(null);
+                }}
+              >
+                <Undo2 size={13} /> Restore my draft
+              </Button>
+            )}
+            <span className="text-[11.5px] text-faint">
+              Write your idea in any language — عربي, 中文, español… the Director turns it into a
+              pro prompt you can edit.
+            </span>
+          </div>
+          {directorError && <p className="mt-1.5 text-xs text-danger">{directorError}</p>}
 
           {/* Try-this chips */}
           {!prompt && pickedCount === 0 && (
@@ -315,6 +397,15 @@ export function MakeView({ mode }: { mode?: Modality }) {
                   />
                 ))}
               </div>
+            )}
+
+            {modality === "video" && (
+              <p className="mt-3 flex items-center gap-1.5 text-[11.5px] text-faint">
+                <ImagePlus size={13} className="shrink-0" />
+                {refImageUrls.length > 0
+                  ? `${refImageUrls.length} of ${REF_IMAGE_LIMIT} reference images attached — Seedance follows your images plus the text.`
+                  : `Picked assets steer the video: 1 image sets the first frame, up to ${REF_IMAGE_LIMIT} act as references.`}
+              </p>
             )}
 
             {finalPrompt && finalPrompt !== prompt.trim() && (

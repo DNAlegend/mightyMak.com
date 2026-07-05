@@ -296,7 +296,7 @@ async function runCloudGeneration(set: StoreSet, get: () => StoreState, job: Vid
         posterUrl: job.posterUrl,
         elements: job.elements,
         direction: job.direction,
-        refImageUrl: job.refImageUrl,
+        refImageUrls: job.refImageUrls,
       }),
     });
     if (res.status === 501) {
@@ -473,7 +473,7 @@ export const useStore = create<StoreState>()(
           modality,
           refAssetId: p.refAssetId ?? null,
           posterUrl: p.posterUrl,
-          refImageUrl: p.refImageUrl,
+          refImageUrls: p.refImageUrls,
           elements: p.elements,
           direction: p.direction,
           creditsCost: cost,
