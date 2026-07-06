@@ -91,6 +91,7 @@ function InputTile({
   cap,
   thumbs,
   desc,
+  fileTypes,
   dim,
   disabled,
   hint,
@@ -106,6 +107,7 @@ function InputTile({
   cap: string;
   thumbs: Asset[];
   desc?: string;
+  fileTypes?: string;
   dim?: boolean;
   disabled?: boolean;
   hint?: string;
@@ -144,6 +146,9 @@ function InputTile({
         {pill}
       </span>
       {desc && <p className="mt-1 text-[10.5px] leading-snug text-muted">{desc}</p>}
+      {fileTypes && (
+        <p className="mt-1 text-[9px] font-semibold uppercase tracking-wider text-faint">{fileTypes}</p>
+      )}
       <div className="mt-2 flex h-7 items-center gap-1">
         {thumbs.length === 0 ? (
           <span className="text-[10.5px] text-faint">{hint ?? "Tap to add"}</span>
@@ -751,6 +756,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
                         count={board.firstFrame ? 1 : 0}
                         cap="1"
                         desc="The clip opens exactly on this picture."
+                        fileTypes="JPG · PNG · WebP"
                         thumbs={board.firstFrame && byId[board.firstFrame] ? [byId[board.firstFrame]] : []}
                         dim={board.refs.length + board.refVideos.length > 0}
                         highlight={dragZone === "firstFrame"}
@@ -765,6 +771,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
                         count={board.lastFrame ? 1 : 0}
                         cap="1"
                         desc="…and lands on this one. Reveals & transforms."
+                        fileTypes="JPG · PNG · WebP"
                         thumbs={board.lastFrame && byId[board.lastFrame] ? [byId[board.lastFrame]] : []}
                         dim={board.refs.length + board.refVideos.length > 0}
                         disabled={!board.firstFrame}
@@ -795,6 +802,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
                         count={board.refs.length}
                         cap={String(REF_IMAGE_LIMIT)}
                         desc="Faces, products, outfits, places to copy. #I1–#I9"
+                        fileTypes="JPG · PNG · WebP"
                         thumbs={refImageAssets}
                         dim={!!board.firstFrame}
                         highlight={dragZone === "refs"}
@@ -809,6 +817,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
                         count={board.refVideos.length}
                         cap={String(REF_VIDEO_LIMIT)}
                         desc="Clips whose motion & energy to match. #V1–#V3"
+                        fileTypes="MP4 · MOV"
                         thumbs={refVideoAssets}
                         dim={!!board.firstFrame}
                         highlight={dragZone === "refVideos"}
@@ -830,6 +839,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
                       count={board.influences.length}
                       cap={String(STYLE_LIMIT)}
                       desc="Audio, dances or any asset whose description flavors the text. #A1–#A5"
+                      fileTypes="Text only — no file sent"
                       thumbs={board.influences.map((id) => byId[id]).filter(Boolean) as Asset[]}
                       highlight={dragZone === "influences"}
                       onOpen={() => setBoardPickZone("influences")}
@@ -1096,37 +1106,42 @@ function BoardPickerModal({
 }) {
   const META: Record<
     BoardZone,
-    { title: string; hint: string; kinds: Asset["kind"][]; cap: number }
+    { title: string; hint: string; kinds: Asset["kind"][]; cap: number; types: string }
   > = {
     firstFrame: {
       title: "First frame · F1",
       hint: "Your video opens exactly on this picture — the scene, the person, the product, frozen at second zero.",
       kinds: ["image"],
       cap: 1,
+      types: "JPG · PNG · WebP",
     },
     lastFrame: {
       title: "Last frame · F2",
       hint: "Optional — the video lands on this picture. Perfect for reveals, before → after, and transformations.",
       kinds: ["image"],
       cap: 1,
+      types: "JPG · PNG · WebP",
     },
     refs: {
       title: "Reference images · #I1–#I9",
       hint: "The model copies identity, outfits and look from these. Tap to add or remove — up to 9.",
       kinds: ["image"],
       cap: 9,
+      types: "JPG · PNG · WebP",
     },
     refVideos: {
       title: "Reference videos · #V1–#V3",
       hint: "Motion and energy for the model to imitate. Tap to add or remove — up to 3.",
       kinds: ["video"],
       cap: 3,
+      types: "MP4 · MOV",
     },
     influences: {
       title: "Sound & style · #A1–#A5",
       hint: "Flavors the written prompt only — nothing is uploaded to the model. Up to 5.",
       kinds: ["image", "video", "audio"],
       cap: 5,
+      types: "Any asset — only its description is used",
     },
   };
   if (!zone) return null;
@@ -1151,7 +1166,10 @@ function BoardPickerModal({
 
   return (
     <Modal open onClose={onClose} title={meta.title} size="lg">
-      <p className="mb-3 text-sm text-muted">{meta.hint}</p>
+      <p className="mb-1 text-sm text-muted">{meta.hint}</p>
+      <p className="mb-3 text-[10.5px] font-semibold uppercase tracking-wider text-faint">
+        Accepts: {meta.types}
+      </p>
       {options.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted">
           Nothing suitable in your library yet.{" "}
