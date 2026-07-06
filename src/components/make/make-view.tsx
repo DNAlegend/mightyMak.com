@@ -256,8 +256,8 @@ export function MakeView({ mode }: { mode?: Modality }) {
 
   const heading =
     mode === "image"
-      ? { kicker: "Image", h1: "Design your frame", sub: "Pick what you're making, type your idea, Generate." }
-      : { kicker: "Video", h1: "Direct your shot", sub: "Pick what you're making, type your idea, Generate." };
+      ? { kicker: "Image", h1: "Image generator", sub: "Pick what you're making, type your idea, Generate." }
+      : { kicker: "Video", h1: "Video generator", sub: "Pick a model — everything it accepts appears below." };
 
   const model = getModel(modelId);
 
@@ -497,24 +497,53 @@ export function MakeView({ mode }: { mode?: Modality }) {
         <p className="mt-1.5 text-sm text-muted">{heading.sub}</p>
       </header>
 
-      {/* Purpose picker */}
-      <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1.5">
-        {availablePurposes.map((p) => (
+      {/* Purpose picker (image page only — video is model-first) */}
+      {mode === "image" && (
+        <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1.5">
+          {availablePurposes.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => applyPurpose(p.id)}
+              className={cn(
+                "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors",
+                purposeId === p.id
+                  ? "border-accent/60 bg-accent-soft"
+                  : "border-line bg-surface hover:border-line-2",
+              )}
+            >
+              <span className="text-lg leading-none">{p.glyph}</span>
+              <span>
+                <span className="block text-[13px] font-semibold leading-tight text-fg">{p.label}</span>
+                <span className="block text-[11px] leading-tight text-faint">{p.tagline}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* The model — the very first choice; its inputs render below */}
+      <div className="mb-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        {listModels({ modality, enabledOnly: true }).map((m) => (
           <button
-            key={p.id}
-            onClick={() => applyPurpose(p.id)}
+            key={m.id}
+            onClick={() => setModelId(m.id)}
             className={cn(
-              "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors",
-              purposeId === p.id
-                ? "border-accent/60 bg-accent-soft"
+              "rounded-2xl border p-3.5 text-left transition-all",
+              modelId === m.id
+                ? "border-accent/60 bg-accent-soft shadow-[0_10px_28px_-16px_rgba(124,108,255,0.5)]"
                 : "border-line bg-surface hover:border-line-2",
             )}
           >
-            <span className="text-lg leading-none">{p.glyph}</span>
-            <span>
-              <span className="block text-[13px] font-semibold leading-tight text-fg">{p.label}</span>
-              <span className="block text-[11px] leading-tight text-faint">{p.tagline}</span>
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-lg leading-none">{m.glyph}</span>
+              <span className="text-[14px] font-semibold text-fg">{m.name}</span>
+              {m.badge && (
+                <Badge tone={m.badge === "recommended" ? "accent" : "neutral"} className="ml-auto capitalize">
+                  {m.badge}
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-muted">{m.blurb}</p>
           </button>
         ))}
       </div>
@@ -636,32 +665,6 @@ export function MakeView({ mode }: { mode?: Modality }) {
             </div>
           )}
 
-          {/* Model — pick it first; its exact inputs render right below */}
-          <div className="mt-4 border-t border-line pt-4">
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-faint">Model</div>
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-              {listModels({ modality, enabledOnly: true }).map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setModelId(m.id)}
-                  title={m.blurb}
-                  className={cn(
-                    "flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 transition-colors",
-                    modelId === m.id ? "border-accent/60 bg-accent-soft" : "border-line hover:border-line-2",
-                  )}
-                >
-                  <span className="text-base leading-none">{m.glyph}</span>
-                  <span className="text-[13px] font-semibold text-fg">{m.name}</span>
-                  {m.badge && (
-                    <Badge tone={m.badge === "recommended" ? "accent" : "neutral"} className="capitalize">
-                      {m.badge}
-                    </Badge>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Inputs this model accepts — always visible, empty until filled */}
           <div className="mt-4 border-t border-line pt-4">
             <div className="mb-1 text-xs font-medium uppercase tracking-wide text-faint">
@@ -728,27 +731,45 @@ export function MakeView({ mode }: { mode?: Modality }) {
                   hint="The exact first — and optionally last — picture of your clip."
                   dim={board.refs.length + board.refVideos.length > 0}
                 >
-                  <div className="grid max-w-md grid-cols-2 gap-2">
-                    <DropSquare
-                      label={board.firstFrame ? "F1 · First frame" : "First frame"}
-                      icon={<ImagePlus size={17} />}
-                      asset={board.firstFrame ? byId[board.firstFrame] : null}
-                      highlight={dragZone === "firstFrame"}
-                      onClear={() => removeFromBoard("firstFrame")}
-                      onPick={() => setBoardPickZone("firstFrame")}
-                      {...zoneDropProps("firstFrame")}
-                    />
-                    <DropSquare
-                      label={board.lastFrame ? "F2 · Last frame" : "Last frame"}
-                      icon={<Flag size={17} />}
-                      asset={board.lastFrame ? byId[board.lastFrame] : null}
-                      disabled={!board.firstFrame}
-                      hint={!board.firstFrame ? "needs a first frame" : undefined}
-                      highlight={dragZone === "lastFrame"}
-                      onClear={() => removeFromBoard("lastFrame")}
-                      onPick={() => setBoardPickZone("lastFrame")}
-                      {...zoneDropProps("lastFrame")}
-                    />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <div className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold text-fg">
+                        <ImagePlus size={13} className="text-accent-2" /> First frame · F1
+                      </div>
+                      <p className="mb-1.5 text-[11px] leading-snug text-faint">
+                        Your video opens exactly on this picture — the scene, the person, the
+                        product, frozen at second zero.
+                      </p>
+                      <DropSquare
+                        label={board.firstFrame ? "F1 · First frame" : "First frame"}
+                        icon={<ImagePlus size={17} />}
+                        asset={board.firstFrame ? byId[board.firstFrame] : null}
+                        highlight={dragZone === "firstFrame"}
+                        onClear={() => removeFromBoard("firstFrame")}
+                        onPick={() => setBoardPickZone("firstFrame")}
+                        {...zoneDropProps("firstFrame")}
+                      />
+                    </div>
+                    <div>
+                      <div className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold text-fg">
+                        <Flag size={13} className="text-accent-2" /> Last frame · F2
+                      </div>
+                      <p className="mb-1.5 text-[11px] leading-snug text-faint">
+                        Optional — the video lands on this picture. Perfect for reveals,
+                        before → after, and transformations.
+                      </p>
+                      <DropSquare
+                        label={board.lastFrame ? "F2 · Last frame" : "Last frame"}
+                        icon={<Flag size={17} />}
+                        asset={board.lastFrame ? byId[board.lastFrame] : null}
+                        disabled={!board.firstFrame}
+                        hint={!board.firstFrame ? "needs a first frame" : undefined}
+                        highlight={dragZone === "lastFrame"}
+                        onClear={() => removeFromBoard("lastFrame")}
+                        onPick={() => setBoardPickZone("lastFrame")}
+                        {...zoneDropProps("lastFrame")}
+                      />
+                    </div>
                   </div>
                 </InputPanel>
 
