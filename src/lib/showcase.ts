@@ -31,7 +31,7 @@ export const HERO: ShowcaseMedia = {
   ...resolve("hero-video", generated["hero-neon-city"] ?? "/art/hero-neon-city.svg"),
   poster: generated["hero-neon-city"] ?? "/art/hero-neon-city.svg",
   label: "Neon samurai in rain-soaked Tokyo",
-  tag: "Seedance 2.0",
+  tag: "Mak Pro",
 };
 
 /** The prompt shown typed into the hero's mock studio bar. */
@@ -49,7 +49,7 @@ const TILE = (n: string, label: string): ShowcaseMedia => ({
   id: n,
   ...resolve(n, `/art/${n}.svg`),
   label,
-  tag: "Image · Seedream",
+  tag: "MightyMak",
 });
 
 /** The "Made with MightyMak" gallery. */

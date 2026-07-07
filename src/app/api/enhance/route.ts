@@ -11,7 +11,7 @@ const DIRECTOR_MODEL = process.env.ARK_DIRECTOR_MODEL ?? "deepseek-v4-flash-2604
 
 export const maxDuration = 30;
 
-const SYSTEM = `You are a world-class commercial video director writing generation prompts for the Seedance 2.0 video model (and Seedream for stills).
+const SYSTEM = `You are a world-class commercial video director writing generation prompts for a professional cinematic video generation model.
 The user's brief may be written in ANY language — always answer with the final prompt in ENGLISH.
 Weave in every provided asset description naturally (they are visual references the model will also receive as images).
 Structure the prompt as one flowing paragraph covering: subject and action, setting, camera movement, lighting, mood, and style.

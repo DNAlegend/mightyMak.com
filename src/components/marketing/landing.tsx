@@ -120,7 +120,7 @@ function Hero() {
       />
       <div className="mx-auto max-w-6xl px-4 pb-10 pt-16 text-center sm:px-6 sm:pt-24">
         <div className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-[12px] font-medium text-muted">
-          <Sparkles size={13} className="text-accent-2" /> Powered by ByteDance Seedance &amp; Seedream
+          <Sparkles size={13} className="text-accent-2" /> Powered by our own MightyMak engine
         </div>
         <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-bold leading-[1.07] tracking-tight sm:text-6xl">
           Your AI video &amp; image studio,
@@ -146,7 +146,7 @@ function Hero() {
             <div className="relative aspect-video w-full bg-black">
               <MediaTile m={HERO} />
               <div className="absolute right-3 top-3 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white/85 backdrop-blur-md">
-                Seedance 2.0 Pro · 1080p · 5s
+                Mak Pro · 1080p · 5s
               </div>
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-5">
                 <div className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black/45 px-3.5 py-2.5 backdrop-blur-md">
@@ -190,11 +190,11 @@ function FloatChip({ m }: { m: ShowcaseMedia }) {
 }
 
 function ModelBand() {
-  const items = ["Seedance 2.0 Pro", "Seedance 2.0 Fast", "Seedream 4.0", "+ more models soon"];
+  const items = ["Mak Pro", "Mak Fast", "Mak Mini", "Mak Image", "+ more soon"];
   return (
     <section className="border-y border-line bg-surface-2/50">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-6 py-5">
-        <span className="text-[12px] font-semibold uppercase tracking-wider text-faint">Plug-and-play models</span>
+        <span className="text-[12px] font-semibold uppercase tracking-wider text-faint">The MightyMak engine</span>
         {items.map((i) => (
           <span key={i} className="text-sm font-medium text-muted">{i}</span>
         ))}
@@ -294,7 +294,7 @@ function DemoCard({ d }: { d: DemoItem }) {
             >
               <Clapperboard size={22} />
             </span>
-            <span className="text-[12px] font-medium text-muted">{d.aspect} · Seedance</span>
+            <span className="text-[12px] font-medium text-muted">{d.aspect} · MightyMak</span>
           </div>
         )}
         <span className="absolute left-2.5 top-2.5">
@@ -383,7 +383,7 @@ const PLANS = [
     popular: false,
     video: "720p drafts · up to 6s",
     image: "1K images",
-    perks: ["1,200-credit welcome boost", "Seedance 2.0 Lite + Seedream", "Personal asset library", "≈10 draft clips or 35 images / mo"],
+    perks: ["1,200-credit welcome boost", "Full MightyMak engine", "Personal asset library", "≈10 draft clips or 35 images / mo"],
     cta: "Start free",
   },
   {
@@ -396,7 +396,7 @@ const PLANS = [
     popular: false,
     video: "1080p HD · up to 10s · native audio",
     image: "2K images",
-    perks: ["All ByteDance models", "Image-to-video with your assets", "≈25 HD clips or 250 images / mo"],
+    perks: ["Every MightyMak model", "Image-to-video with your assets", "≈25 HD clips or 250 images / mo"],
     cta: "Get Basic",
   },
   {
@@ -510,7 +510,7 @@ function Pricing() {
 const FAQS = [
   {
     q: "What can I actually generate?",
-    a: "Real videos (5s or 10s clips at up to 2K, with native audio) and high-detail images, rendered by ByteDance's Seedance and Seedream models. Vertical UGC ads, product films, fashion clips, brand spots, stills — pick a purpose and the studio configures the right format.",
+    a: "Real videos (5–15s clips at up to 2K, with native audio) and high-detail images, rendered by our own MightyMak engine. Vertical UGC ads, product films, fashion clips, brand spots, stills — pick a purpose and the studio configures the right format.",
   },
   {
     q: "How do my assets change the output?",

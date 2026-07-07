@@ -1061,8 +1061,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
             )}
             {needsSignIn && (
               <p className="mt-2 text-center text-xs text-faint">
-                Free account · 1,200 credits to start — your shot renders with the real{" "}
-                {modality === "video" ? "Seedance" : "Seedream"} model.
+                Free account · 1,200 credits to start — your shot renders with the real MightyMak engine.
               </p>
             )}
           </div>

@@ -249,7 +249,7 @@ export function ResultHero({ job }: { job: VideoJob }) {
       {job.simulated && (
         <p className="text-xs text-faint">
           This is a demo sample clip, not a real render — sign in on a deployment with the
-          Seedance model configured to generate for real.
+          MightyMak engine configured to generate for real.
         </p>
       )}
     </div>
