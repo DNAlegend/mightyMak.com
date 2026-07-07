@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Clapperboard, Film, FolderOpen, LogOut, Plus, Coins, UserCircle, Sparkles } from "lucide-react";
+import { Clapperboard, Film, FolderOpen, LogOut, Loader2, Plus, Coins, UserCircle, Sparkles } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
+import { TOPUPS, PLAN_ITEMS, type BillingItem } from "@/lib/billing";
 import { cn } from "@/lib/utils";
 import { Button, Modal, Badge } from "@/components/ui";
 import { AuthModal } from "@/components/auth/auth-modal";
@@ -15,12 +16,6 @@ const NAV = [
   { href: "/app", label: "Video", icon: Clapperboard },
   { href: "/app/assets", label: "Assets", icon: FolderOpen },
   { href: "/app/library", label: "Library", icon: Film },
-];
-
-const CREDIT_PACKS = [
-  { credits: 300, price: "$6", label: "Small" },
-  { credits: 1200, price: "$20", label: "Popular", popular: true },
-  { credits: 3000, price: "$45", label: "Big" },
 ];
 
 function Brand() {
@@ -80,22 +75,56 @@ function CreditWidget({ onBuy }: { onBuy: () => void }) {
 
 function BuyCreditsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const addCredits = useStore((s) => s.addCredits);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Start a real MamoPay checkout; if payments aren't configured (or the user
+  // is signed out), fall back to the instant demo top-up so the app still works.
+  async function buy(item: BillingItem) {
+    if (busy) return;
+    setBusy(item.id);
+    setError(null);
+    try {
+      const token = (await supabase?.auth.getSession())?.data.session?.access_token;
+      if (token) {
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ itemId: item.id, origin: window.location.origin }),
+        });
+        if (res.ok) {
+          const { url } = await res.json();
+          if (url) {
+            window.location.href = url; // hand off to MamoPay's hosted checkout
+            return;
+          }
+        } else if (res.status !== 501) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d.error ?? "Checkout failed");
+        }
+        // 501 → payments not configured yet; fall through to demo.
+      }
+      // Demo fallback: instant credits, no charge.
+      addCredits(item.credits);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Checkout failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
-    <Modal open={open} onClose={onClose} title="Buy credits" size="md">
-      <p className="mb-4 text-sm text-muted">
-        Demo mode — purchases instantly add credits, no payment required. Real Stripe
-        checkout plugs in here later.
-      </p>
+    <Modal open={open} onClose={onClose} title="Get more credits" size="lg">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-faint">Top up — one-time</div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {CREDIT_PACKS.map((p) => (
+        {TOPUPS.map((p) => (
           <button
-            key={p.label}
-            onClick={() => {
-              addCredits(p.credits);
-              onClose();
-            }}
+            key={p.id}
+            disabled={!!busy}
+            onClick={() => buy(p)}
             className={cn(
-              "relative rounded-2xl border bg-surface-2 p-4 text-left transition-colors hover:border-accent/50",
+              "relative rounded-2xl border bg-surface-2 p-4 text-left transition-colors hover:border-accent/50 disabled:opacity-60",
               p.popular ? "border-accent/40" : "border-line",
             )}
           >
@@ -105,14 +134,44 @@ function BuyCreditsModal({ open, onClose }: { open: boolean; onClose: () => void
               </span>
             )}
             <div className="text-sm font-medium text-muted">{p.label}</div>
-            <div className="mt-1 text-2xl font-bold tabular-nums">
-              {p.credits.toLocaleString()}
+            <div className="mt-1 text-2xl font-bold tabular-nums">{p.credits.toLocaleString()}</div>
+            <div className="text-xs text-faint">credits · {p.sublabel}</div>
+            <div className="mt-3 flex items-center gap-1.5 text-lg font-semibold text-accent-2">
+              {busy === p.id ? <Loader2 size={16} className="animate-spin" /> : p.priceLabel}
             </div>
-            <div className="text-xs text-faint">credits</div>
-            <div className="mt-3 text-lg font-semibold text-accent-2">{p.price}</div>
           </button>
         ))}
       </div>
+
+      <div className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wider text-faint">
+        Or subscribe — monthly
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {PLAN_ITEMS.map((p) => (
+          <button
+            key={p.id}
+            disabled={!!busy}
+            onClick={() => buy(p)}
+            className={cn(
+              "relative flex items-center justify-between rounded-2xl border bg-surface-2 p-4 text-left transition-colors hover:border-accent/50 disabled:opacity-60",
+              p.popular ? "border-accent/40" : "border-line",
+            )}
+          >
+            <div>
+              <div className="text-sm font-semibold text-fg">{p.label}</div>
+              <div className="text-xs text-faint">{p.credits.toLocaleString()} credits / mo · {p.sublabel}</div>
+            </div>
+            <div className="flex items-center gap-1.5 text-lg font-semibold text-accent-2">
+              {busy === p.id ? <Loader2 size={16} className="animate-spin" /> : <>{p.priceLabel}<span className="text-xs font-normal text-faint">/mo</span></>}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="mt-3 text-sm text-danger">{error}</p>}
+      <p className="mt-4 text-xs text-faint">
+        Secure checkout by MamoPay. Credits are added the moment your payment clears.
+      </p>
     </Modal>
   );
 }
@@ -125,6 +184,33 @@ export function AppShell({ children }: { children: ReactNode }) {
   const hydrateFromCloud = useStore((s) => s.hydrateFromCloud);
   const signOutToLocal = useStore((s) => s.signOutToLocal);
   const lastUser = useRef<string | null>(null);
+  const [purchaseNote, setPurchaseNote] = useState<string | null>(null);
+
+  // Returning from MamoPay checkout — the webhook adds credits async, so poll
+  // the cloud a few times for them to land, and confirm to the user.
+  useEffect(() => {
+    if (typeof window === "undefined" || !supabase) return;
+    const status = new URLSearchParams(window.location.search).get("purchase");
+    if (!status) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    if (status === "failed") {
+      setPurchaseNote("Payment didn’t go through — no charge was made.");
+      const t = setTimeout(() => setPurchaseNote(null), 6000);
+      return () => clearTimeout(t);
+    }
+    setPurchaseNote("Payment received — adding your credits…");
+    let n = 0;
+    const poll = setInterval(async () => {
+      const uid = (await supabase!.auth.getSession()).data.session?.user?.id;
+      if (uid) void hydrateFromCloud(uid);
+      if (++n >= 5) {
+        clearInterval(poll);
+        setPurchaseNote("Credits added — you’re all set.");
+        setTimeout(() => setPurchaseNote(null), 4000);
+      }
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [hydrateFromCloud]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -215,6 +301,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <BuyCreditsModal open={buyOpen} onClose={() => setBuyOpen(false)} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+
+      {purchaseNote && (
+        <div className="animate-rise fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium text-fg shadow-[0_16px_40px_-16px_rgba(16,18,27,0.4)]">
+          <span className="flex items-center gap-2">
+            <Coins size={15} className="text-teal" /> {purchaseNote}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
