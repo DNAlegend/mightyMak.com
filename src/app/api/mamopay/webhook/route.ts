@@ -1,13 +1,14 @@
 // MamoPay webhook — grants credits after a verified payment.
 //
-// Security, in layers:
-//  1. A shared secret in the URL (?key=…) rejects stranger traffic. We register
-//     the webhook URL with this secret, so only MamoPay knows it.
-//  2. We NEVER trust the webhook body's amounts. We take the charge id from it,
-//     re-fetch the charge from MamoPay's API with our key, and confirm it truly
-//     succeeded and its amount matches the purchase before granting anything.
-//  3. Credits are granted through settle_charge() which is idempotent on the
-//     charge id, so replays and monthly renewals each credit exactly once.
+// The real security is NOT the shared secret (which the merchant may or may not
+// have added to the registered URL) — it's that we re-fetch the charge from
+// MamoPay with our own key and only credit a purchase that: (a) truly shows as
+// captured, (b) matches a pending purchase WE created for a specific user, and
+// (c) has the amount we recorded. A forged call can't satisfy that. So the
+// secret is treated as a soft signal (logged), never a hard gate — this way a
+// correctly-paid customer is never denied credits over a URL-secret mismatch.
+// Credits are granted through settle_charge(), idempotent on the charge id, so
+// replays and monthly renewals each credit exactly once.
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -30,15 +31,15 @@ export async function POST(req: Request) {
   if (!mamoConfigured() || !supabaseAdmin) {
     return NextResponse.json({ error: "not configured" }, { status: 501 });
   }
-  // Layer 1: shared secret.
+  // Soft secret signal (never a hard gate — see header comment).
   const secret = process.env.MAMOPAY_WEBHOOK_SECRET;
   const url = new URL(req.url);
   const provided = url.searchParams.get("key") ?? req.headers.get("authorization") ?? "";
-  if (secret && provided !== secret && provided !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const secretOk = !secret || provided === secret || provided === `Bearer ${secret}`;
+  if (!secretOk) console.warn("[mamo webhook] secret did not match — verifying via charge anyway");
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  console.log("[mamo webhook] event:", JSON.stringify(body).slice(0, 600));
   const chargeId = pick(body, ["id", "charge_id", "chargeId", "transaction_id", "transactionId"]);
   if (!chargeId) {
     console.warn("[mamo webhook] no charge id in body:", JSON.stringify(body).slice(0, 500));
