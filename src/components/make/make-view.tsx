@@ -157,15 +157,24 @@ function SlotSquare({
 } & React.HTMLAttributes<HTMLElement>) {
   const size = wide ? 'h-16 w-28' : 'h-16 w-16';
   if (asset) {
+    // FILLED — a clear "added" state: solid accent ring + a check badge.
     return (
-      <div className={cn('relative shrink-0 overflow-hidden rounded-lg border border-accent/50', size)}>
+      <div
+        className={cn(
+          'relative shrink-0 overflow-hidden rounded-lg border-2 border-accent ring-2 ring-accent/25',
+          size,
+        )}
+      >
         <AssetThumb a={asset} className="h-full w-full" />
+        <span className="absolute left-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-white shadow">
+          <Check size={10} strokeWidth={3} />
+        </span>
         <span className="absolute bottom-0.5 left-0.5 rounded bg-black/65 px-1 text-[9px] font-bold text-white">
           {tag}
         </span>
         <button
           onClick={onRemove}
-          className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"
+          className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white transition-colors hover:bg-black/80"
           aria-label={'Remove ' + tag}
         >
           <X size={10} />
@@ -173,6 +182,7 @@ function SlotSquare({
       </div>
     );
   }
+  // EMPTY — the next open slot pulses to invite a click; later ones sit muted.
   return (
     <button
       onClick={onPress}
@@ -182,13 +192,13 @@ function SlotSquare({
         'flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed transition-colors',
         size,
         isNext && !disabled
-          ? 'border-line-2 text-faint hover:border-accent/40 hover:text-fg'
-          : 'border-line text-faint opacity-45',
+          ? 'slot-next border-line-2 text-accent-2 hover:border-accent hover:bg-accent-soft'
+          : 'border-line text-faint opacity-40',
         disabled && 'cursor-not-allowed',
         highlight && isNext && 'border-accent bg-accent-soft',
       )}
     >
-      {isNext && !disabled ? <Plus size={14} /> : null}
+      {isNext && !disabled ? <Plus size={15} strokeWidth={2.5} /> : null}
       <span className="text-[9px] font-bold uppercase tracking-wide">{emptyLabel ?? tag}</span>
     </button>
   );
