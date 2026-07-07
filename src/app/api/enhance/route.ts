@@ -19,10 +19,10 @@ Be concrete and visual; prefer verbs of motion; 40–90 words.
 Avoid real brand names, logos, trademarked or copyrighted characters, franchises, and real public figures unless the user explicitly supplies them as their own assets — prefer generic, original descriptions.
 Output ONLY the prompt paragraph — no preamble, no quotes, no lists, no explanations.`;
 
-const SAFE_SYSTEM = `A previous attempt to generate a video from this prompt was blocked by automated content and copyright filters.
-Rewrite the prompt so it passes the filters: remove or replace any real brand names, logos, trademarked or copyrighted characters, franchises, recognizable protected designs, and real public figures or celebrities with generic, original equivalents.
-Preserve the creative intent — the subject's action, setting, camera movement, lighting and mood.
-Answer in ENGLISH as one flowing paragraph, 40–90 words.
+const SAFE_SYSTEM = `You rewrite video prompts that were BLOCKED by an automated copyright filter which inspects the GENERATED video, not just the words.
+Removing names is not enough — reimagine the concept so the resulting footage cannot visually resemble any known character, costume, silhouette, franchise, logo, brand, or real person.
+Replace iconic costumes, designs, colors and signatures with wholly original ones; describe an ordinary, generic scene; keep only the abstract action, setting and mood.
+Answer in ENGLISH as one flowing paragraph, 40–80 words.
 Output ONLY the rewritten prompt — no preamble, no quotes, no explanations.`;
 
 export async function POST(req: Request) {
