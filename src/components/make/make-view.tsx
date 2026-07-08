@@ -945,7 +945,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
               ) : null}
               <Link href="/app/library" className="ml-auto">
                 <Button variant="ghost" size="sm">
-                  Library <ArrowRight size={15} />
+                  My Videos <ArrowRight size={15} />
                 </Button>
               </Link>
             </div>

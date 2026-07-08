@@ -42,7 +42,7 @@ export function LibraryView() {
     <div className="mx-auto max-w-6xl">
       <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Library</h1>
+          <h1 className="text-2xl font-bold tracking-tight">My Videos</h1>
           <p className="mt-1 text-sm text-muted">
             {videos.length === 0
               ? "Everything you generate is collected and managed here."

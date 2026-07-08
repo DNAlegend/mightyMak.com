@@ -216,7 +216,7 @@ const FEATURES = [
   {
     icon: Film,
     title: "Manage everything",
-    body: "Every output lands in your Library with the prompt, model and source assets attached. Re-roll, make variations, or promote a keeper back into your assets.",
+    body: "Every output lands in My Videos with the prompt, model and source assets attached. Re-roll, make variations, or promote a keeper back into your assets.",
   },
 ];
 
@@ -245,7 +245,7 @@ function Features() {
 const STEPS = [
   { n: "1", icon: Layers, title: "Build your library", body: "Organize your assets into five classes — Characters, Dresses, Scenes, Dances and Audio. My library and Business library, side by side." },
   { n: "2", icon: Wand2, title: "Make your shot", body: "Type a prompt, or pull assets into the slots to compose one. Choose a video or image model and hit generate." },
-  { n: "3", icon: Clapperboard, title: "Manage & reuse", body: "Find every clip and image in your Library, see exactly what made it, and remix or promote it into a new asset." },
+  { n: "3", icon: Clapperboard, title: "Manage & reuse", body: "Find every clip and image in My Videos, see exactly what made it, and remix or promote it into a new asset." },
 ];
 
 function Steps() {

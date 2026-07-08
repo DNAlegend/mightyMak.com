@@ -200,7 +200,7 @@ export function AssetsView() {
             onClick={() => { setOpenCol(null); exitSelect(); }}
             className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-fg"
           >
-            <ChevronLeft size={16} /> Library
+            <ChevronLeft size={16} /> All assets
           </button>
           <h2 className="text-[15px] font-semibold">{openColMeta.name}</h2>
           <span className="text-xs text-faint">{inCollection(openColMeta.id).length}</span>
@@ -524,7 +524,7 @@ function StartHere({ onUpload, onNewPrompt }: { onUpload: () => void; onNewPromp
     {
       icon: Film,
       title: "Videos",
-      body: "Reference clips whose motion and energy the model imitates. Anything you generate in Video can be saved back here and reused.",
+      body: "Reference clips whose motion and energy the model imitates. Anything you generate in Make can be saved back here and reused.",
       action: "Upload MP4 · MOV",
       onClick: onUpload,
     },
@@ -550,7 +550,7 @@ function StartHere({ onUpload, onNewPrompt }: { onUpload: () => void; onNewPromp
         <p className="mx-auto mt-1.5 max-w-lg text-[13.5px] leading-relaxed text-muted">
           Assets are the raw material your videos are made from. Three ways to add them: upload
           files (or drag &amp; drop anywhere on this page), save something you generated in{" "}
-          <span className="font-medium text-fg">Video</span>, or write a reusable prompt. Then
+          <span className="font-medium text-fg">Make</span>, or write a reusable prompt. Then
           group anything into collections — select a few items and hit Collect.
         </p>
       </div>
