@@ -7,7 +7,6 @@ import { Clapperboard, Film, FolderOpen, Lightbulb, LogOut, Loader2, Mail, Plus,
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
 import { TOPUPS, PLAN_ITEMS, billingItem, type BillingItem } from "@/lib/billing";
-import { openPaddleCheckout, type PaddleStart } from "@/lib/paddle-checkout";
 import { cn } from "@/lib/utils";
 import { Button, Modal, Badge, TextInput } from "@/components/ui";
 import { AuthModal } from "@/components/auth/auth-modal";
@@ -104,15 +103,15 @@ function CreditWidget({ onBuy }: { onBuy: () => void }) {
 const CHECKOUT_EMAIL_KEY = "vibvid-checkout-email";
 
 /**
- * Ask the server to start a Paddle checkout. Pass a `token` for a signed-in
+ * Ask the server to start a Mamo checkout. Pass a `token` for a signed-in
  * buyer, or an `email` for a guest (their account is created server-side).
- * Returns null when payments aren't configured on the server (501), in which
- * case callers fall back to demo credits.
+ * Returns the hosted checkout URL to redirect to, or null when payments aren't
+ * configured on the server (501), in which case callers fall back to demo credits.
  */
 async function requestCheckout(
   item: BillingItem,
   auth: { token?: string; email?: string },
-): Promise<PaddleStart | null> {
+): Promise<{ checkoutUrl: string } | null> {
   const res = await fetch("/api/checkout", {
     method: "POST",
     headers: {
@@ -131,7 +130,9 @@ async function requestCheckout(
     throw new Error(d.error ?? "Checkout failed");
   }
   const data = await res.json();
-  if (data.provider === "paddle") return { provider: "paddle", ...data } as PaddleStart;
+  if (data.provider === "mamo" && typeof data.checkoutUrl === "string") {
+    return { checkoutUrl: data.checkoutUrl };
+  }
   return null;
 }
 
@@ -139,14 +140,11 @@ function BuyCreditsModal({
   open,
   onClose,
   autostart,
-  onPaid,
 }: {
   open: boolean;
   onClose: () => void;
   /** When set, checkout for this item starts as soon as the modal opens. */
   autostart?: BillingItem | null;
-  /** Called after an embedded payment completes on-page. */
-  onPaid: () => void;
 }) {
   const addCredits = useStore((s) => s.addCredits);
   const [busy, setBusy] = useState<string | null>(null);
@@ -160,9 +158,10 @@ function BuyCreditsModal({
     setSelected(autostart?.id ?? null);
   }, [open, autostart]);
 
-  // Start a Paddle checkout via the hosted overlay. Only signed-in users reach
-  // this modal (the paywall gate handles guests); without cloud keys, fall back
-  // to demo credits.
+  // Start a Mamo checkout by redirecting to the hosted payment page. Only
+  // signed-in users reach this modal (the paywall gate handles guests); without
+  // cloud keys, fall back to demo credits. On return (?purchase=success) the
+  // AppShell effect polls the webhook-granted credits in.
   async function buy(item: BillingItem) {
     if (busy) return;
     setSelected(item.id);
@@ -176,13 +175,9 @@ function BuyCreditsModal({
       }
       if (token) {
         const start = await requestCheckout(item, { token });
-        if (start?.provider === "paddle") {
-          // Paddle overlay pays; the webhook grants credits. Reconcile on close.
-          const paid = await openPaddleCheckout(start);
-          if (paid) {
-            onClose();
-            onPaid();
-          }
+        if (start) {
+          // Leave the app for Mamo's hosted checkout; the webhook grants credits.
+          window.location.href = start.checkoutUrl;
           return;
         }
         // null → payments not configured yet; fall through to demo.
@@ -270,7 +265,7 @@ function BuyCreditsModal({
 
       {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       <p className="mt-4 text-xs text-faint">
-        Secure checkout by Paddle, our merchant of record. Plans renew monthly until cancelled;
+        Secure checkout by Mamo, our payment processor. Plans renew monthly until cancelled;
         credits are added the moment your payment clears. See our{" "}
         <a href="/refunds" className="underline hover:text-fg">Refund &amp; Cancellation Policy</a>.
       </p>
@@ -304,8 +299,7 @@ function PaywallGate({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resent, setResent] = useState(false);
-  // Set when the Paddle overlay completes on-page, or when a free signup link
-  // is sent. `confirmMode` tailors the confirm copy.
+  // Set when a free signup link is sent. `confirmMode` tailors the confirm copy.
   const [paidEmail, setPaidEmail] = useState<string | null>(null);
   const [confirmMode, setConfirmMode] = useState<"paid" | "free">("paid");
 
@@ -336,13 +330,13 @@ function PaywallGate({
         setError("Payments aren’t configured on this server yet — try again later.");
         return;
       }
-      // Remember who's paying in case a redirect checkout forces a round trip.
+      // Remember who's paying so the return handler can confirm their account.
       localStorage.setItem(CHECKOUT_EMAIL_KEY, email.trim().toLowerCase());
-      const ok = await openPaddleCheckout(start);
-      if (ok) handlePaid(); // account already created server-side; confirm email
+      // Redirect to Mamo's hosted checkout; on return (?purchase=success) the
+      // AppShell reads this email and sends the account-confirmation link.
+      window.location.href = start.checkoutUrl;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Checkout failed");
-    } finally {
       setBusy(false);
     }
   }
@@ -375,18 +369,6 @@ function PaywallGate({
     } finally {
       setBusy(false);
     }
-  }
-
-  // Paddle overlay finished without leaving the page — email the sign-in link
-  // ourselves (the redirect handler would have done this otherwise).
-  function handlePaid() {
-    const e = email.trim().toLowerCase();
-    localStorage.removeItem(CHECKOUT_EMAIL_KEY);
-    void supabase?.auth.signInWithOtp({
-      email: e,
-      options: { emailRedirectTo: `${window.location.origin}/app` },
-    });
-    setPaidEmail(e);
   }
 
   async function resend() {
@@ -548,7 +530,7 @@ function PaywallGate({
         <p className="mt-5 text-center text-[12px] text-faint">
           {isFree
             ? "No card required — upgrade any time from inside the studio."
-            : "Secure checkout by Paddle · charged in US dollars · renews monthly · cancel anytime."}
+            : "Secure checkout by Mamo · charged in US dollars · renews monthly · cancel anytime."}
         </p>
       </div>
     </div>
@@ -673,22 +655,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [hydrateFromCloud, signOutToLocal, setAuthOpen]);
 
-  // An embedded (on-page) payment just completed — the webhook grants credits
-  // async, so poll the cloud for them to land, mirroring the redirect flow.
-  function celebratePurchase() {
-    setPurchaseNote("Payment received — adding your credits…");
-    let n = 0;
-    const poll = setInterval(async () => {
-      const uid = (await supabase!.auth.getSession()).data.session?.user?.id;
-      if (uid) void hydrateFromCloud(uid);
-      if (++n >= 5) {
-        clearInterval(poll);
-        setPurchaseNote("Credits added — you’re all set.");
-        setTimeout(() => setPurchaseNote(null), 4000);
-      }
-    }, 3000);
-  }
-
   // Payment-first: when the cloud is live, nobody uses the studio anonymously.
   // Wait for the initial session check, then gate signed-out visitors.
   if (cloudConfigured && !authReady) {
@@ -789,7 +755,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       <BuyCreditsModal
         open={buyOpen}
         autostart={autoBuy}
-        onPaid={celebratePurchase}
         onClose={() => {
           setBuyOpen(false);
           setAutoBuy(null);

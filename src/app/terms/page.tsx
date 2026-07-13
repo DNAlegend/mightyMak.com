@@ -48,17 +48,17 @@ export default function TermsPage() {
           cannot be exchanged, transferred, resold, or redeemed for money.
         </p>
         <p>
-          <strong>Merchant of record.</strong> Our order process and payments are handled by our
-          reseller and merchant of record, {COMPANY.merchantOfRecord} (&ldquo;Paddle&rdquo;). Paddle
-          provides all customer-service enquiries relating to your payment and is responsible for the
-          checkout, invoicing, and collection of applicable taxes. When you buy from us, your contract
-          for the purchase is with Paddle as reseller; your contract for use of the Service is with us
-          under these Terms. Paddle&rsquo;s buyer terms also apply to the transaction.
+          <strong>Seller of record &amp; payment processing.</strong> {COMPANY.legalName} is the seller
+          of record for all purchases. Card payments and subscriptions are processed securely by our
+          payment processor, {COMPANY.paymentProcessor} (&ldquo;Mamo&rdquo;); Mamo handles the checkout
+          and card processing but is not a party to your purchase. When you buy from us, your contract
+          for both the purchase and the use of the Service is with {COMPANY.legalName} under these Terms.
+          Mamo&rsquo;s terms also apply to the payment transaction itself.
         </p>
         <p>
           Subscriptions renew automatically each billing period at the then-current price until you
-          cancel. You authorise Paddle to charge your payment method on each renewal. Prices are shown
-          in US dollars unless stated otherwise, exclusive of taxes that Paddle may add at checkout.
+          cancel. You authorise us and Mamo to charge your payment method on each renewal. Prices are
+          shown in US dollars unless stated otherwise, exclusive of any applicable taxes.
         </p>
         <p>
           Cancellation and refunds are governed by our{" "}
@@ -128,8 +128,8 @@ export default function TermsPage() {
           To the fullest extent permitted by law, we will not be liable for any indirect, incidental,
           special, consequential or punitive damages, or any loss of profits, revenue, data or
           goodwill. Our total liability arising out of or relating to the Service is limited to the
-          amount you paid us (or paid to Paddle for the Service) in the three months before the event
-          giving rise to the claim.
+          amount you paid us for the Service in the three months before the event giving rise to the
+          claim.
         </p>
       </Section>
 

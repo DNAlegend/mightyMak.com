@@ -14,8 +14,8 @@ export default function RefundsPage() {
       intro={
         <>
           This policy explains how billing, cancellations and refunds work for {COMPANY.brand}. Payments
-          are processed by our merchant of record, {COMPANY.merchantOfRecord} (Paddle), and refunds are
-          issued through Paddle back to your original payment method.
+          are processed by our payment processor, {COMPANY.paymentProcessor}, and refunds are issued by
+          us through Mamo back to your original payment method.
         </>
       }
     >
@@ -72,7 +72,7 @@ export default function RefundsPage() {
           </li>
         </ul>
         <p>
-          Refunds are returned to your original payment method through Paddle, typically within 5–10
+          Refunds are returned to your original payment method through Mamo, typically within 5–10
           business days depending on your bank. We do not provide cash refunds or credit to other
           accounts.
         </p>
@@ -93,8 +93,8 @@ export default function RefundsPage() {
             {COMPANY.supportEmail}
           </a>{" "}
           from the address on your account, with your order or receipt reference (shown on the receipt
-          Paddle emailed you). We aim to respond within 2 business days. You may also contact Paddle
-          directly through the link on your Paddle receipt.
+          Mamo emailed you). We aim to respond within 2 business days. We handle all refund requests
+          directly.
         </p>
       </Section>
     </LegalPage>

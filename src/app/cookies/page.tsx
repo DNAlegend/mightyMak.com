@@ -41,16 +41,16 @@ export default function CookiesPage() {
             credits load on your account. Without it, you cannot use the Service.
           </li>
           <li>
-            <strong>Essential — payments.</strong> During checkout, our merchant of record,{" "}
-            {COMPANY.merchantOfRecord} (Paddle), sets its own cookies to process the payment securely
-            and prevent fraud. These are governed by{" "}
+            <strong>Essential — payments.</strong> During checkout, our payment processor,{" "}
+            {COMPANY.paymentProcessor}, sets its own cookies to process the payment securely and
+            prevent fraud. These are governed by{" "}
             <a
-              href="https://www.paddle.com/legal/cookies"
+              href={COMPANY.paymentProcessorSite}
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent-2 underline hover:text-accent"
             >
-              Paddle&rsquo;s Cookie Policy
+              Mamo&rsquo;s privacy &amp; cookie policy
             </a>
             .
           </li>

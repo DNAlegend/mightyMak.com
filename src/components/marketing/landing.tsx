@@ -867,8 +867,9 @@ export function Pricing() {
         </p>
         <p className="mx-auto mt-3 max-w-2xl text-center text-[12px] leading-relaxed text-faint">
           Plans are billed monthly in US dollars and renew automatically until you cancel — cancel
-          anytime from your account. Payments are securely processed by our merchant of record,{" "}
-          {COMPANY.merchantOfRecord} (Paddle), who handles checkout, invoicing and tax. See our{" "}
+          anytime from your account. Card payments and subscriptions are processed securely by our
+          payment processor, {COMPANY.paymentProcessor}; {COMPANY.legalName} is the seller of record.
+          See our{" "}
           <Link href="/refunds" className="underline hover:text-fg">Refund &amp; Cancellation Policy</Link>{" "}
           and{" "}
           <Link href="/terms" className="underline hover:text-fg">Terms</Link>.
@@ -1010,9 +1011,9 @@ export function Footer() {
         <div className="mt-10 border-t border-line pt-6">
           <p className="text-[13px] leading-relaxed text-faint">
             © 2026 {COMPANY.legalName}. All rights reserved. {COMPANY.brand} is operated by{" "}
-            {COMPANY.legalName}, registered in {COMPANY.jurisdiction}. Payments and subscriptions are
-            processed by our authorised reseller and merchant of record, {COMPANY.merchantOfRecord}{" "}
-            (Paddle).
+            {COMPANY.legalName}, the seller of record, registered in {COMPANY.jurisdiction}. Card
+            payments and subscriptions are processed securely by our payment processor,{" "}
+            {COMPANY.paymentProcessor}.
           </p>
         </div>
       </div>

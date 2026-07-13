@@ -1,8 +1,8 @@
 // Start a checkout for a top-up pack or a subscription plan.
 // Records a pending purchase (server-priced from the billing catalog — never
-// trusts the client's amount), then hands the browser the purchase id + Paddle
-// price id + public client token so Paddle.js can open the hosted overlay.
-// Paddle is our sole merchant of record — we never touch card data.
+// trusts the client's amount), then creates a hosted Mamo payment link and
+// hands the browser its checkout URL to redirect to. Mamo is our payment
+// processor; TAXNOW (FZE) is the seller of record. We never touch card data.
 //
 // Two ways in: a signed-in caller (Authorization header), or a guest with just
 // an email — we create their account server-side so they can pay first and
@@ -11,28 +11,29 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin, userIdFromRequest, userIdForEmail } from "@/lib/supabase-admin";
 import { billingItem } from "@/lib/billing";
-import {
-  paddleConfigured,
-  priceIdForItem,
-  paddleClientToken,
-  paddleEnvironment,
-} from "@/lib/paddle";
+import { mamoConfigured, createMamoLink } from "@/lib/mamo";
 
 export const maxDuration = 20;
 
 export async function POST(req: Request) {
-  if (!paddleConfigured() || !supabaseAdmin) {
-    // Paddle not wired up — the client falls back to demo credits.
+  if (!mamoConfigured() || !supabaseAdmin) {
+    // Mamo not wired up — the client falls back to demo credits.
     return NextResponse.json({ error: "Payments not configured" }, { status: 501 });
   }
   const body = await req.json().catch(() => null);
   const item = billingItem(typeof body?.itemId === "string" ? body.itemId : "");
   if (!item) return NextResponse.json({ error: "Unknown item" }, { status: 400 });
 
+  // Where Mamo redirects the buyer back to. Trust our own header origin first,
+  // falling back to a client-sent origin for local dev.
+  const origin =
+    req.headers.get("origin") ??
+    (typeof body?.origin === "string" ? body.origin : new URL(req.url).origin);
+
   let userId = await userIdFromRequest(req);
   let customerEmail: string | null = null;
   if (userId) {
-    // Inline (on-page) checkout needs the payer's email — look it up.
+    // Look up the payer's email to prefill Mamo's checkout.
     const { data } = await supabaseAdmin.auth.admin.getUserById(userId);
     customerEmail = data.user?.email ?? null;
   } else {
@@ -66,20 +67,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Could not start checkout" }, { status: 500 });
   }
 
-  // Hand the browser the price id + public client token and let Paddle.js open
-  // the hosted overlay. custom_data.purchase_id ties the resulting transaction
-  // back to this pending row so the webhook can settle it.
-  const priceId = priceIdForItem(item.id);
-  if (!priceId) {
+  // Create the hosted Mamo link. external_id + custom_data.purchase_id tie the
+  // resulting charge (and every subscription renewal) back to this pending row
+  // so the webhook can settle it.
+  try {
+    const link = await createMamoLink({
+      item,
+      purchaseId: purchase.id,
+      origin,
+      email: customerEmail,
+    });
+    return NextResponse.json({
+      provider: "mamo",
+      purchaseId: purchase.id,
+      checkoutUrl: link.paymentUrl,
+    });
+  } catch (e) {
     await supabaseAdmin.from("credit_purchases").update({ status: "failed" }).eq("id", purchase.id);
-    return NextResponse.json({ error: "This item isn’t available for purchase yet" }, { status: 500 });
+    console.error("[checkout] Mamo link creation failed:", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "Could not start checkout" }, { status: 502 });
   }
-  return NextResponse.json({
-    provider: "paddle",
-    purchaseId: purchase.id,
-    priceId,
-    clientToken: paddleClientToken(),
-    environment: paddleEnvironment(),
-    email: customerEmail,
-  });
 }

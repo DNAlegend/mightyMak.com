@@ -32,7 +32,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Transaction data</strong> — records of your purchases, plan, and credit balance. Your
-            payment-card details are collected and processed by our payment provider, Paddle, and are
+            payment-card details are collected and processed by our payment processor, Mamo, and are
             <em> not</em> stored by us.
           </li>
           <li>
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
         <ul className="ml-5 list-disc space-y-1.5">
           <li>To provide, operate and improve the Service and generate the content you request.</li>
           <li>To create and manage your account and credit balance.</li>
-          <li>To process payments and provide invoices (through Paddle, our merchant of record).</li>
+          <li>To process payments and provide invoices (through Mamo, our payment processor).</li>
           <li>To communicate with you about your account, security, and service updates.</li>
           <li>To detect, prevent and address fraud, abuse, and violations of our policies.</li>
           <li>To comply with legal obligations.</li>
@@ -64,9 +64,9 @@ export default function PrivacyPage() {
 
       <Section heading="4. Payments">
         <p>
-          Payments are handled by {COMPANY.merchantOfRecord} (Paddle), our reseller and merchant of
-          record. When you check out, you provide your payment details directly to Paddle under
-          Paddle&rsquo;s own privacy policy. We receive confirmation of the transaction and limited
+          Payments are handled by {COMPANY.paymentProcessor}, our payment processor; {COMPANY.legalName}{" "}
+          is the seller of record. When you check out, you provide your payment details directly to Mamo
+          under Mamo&rsquo;s own privacy policy. We receive confirmation of the transaction and limited
           billing information (such as country and the last digits of your card) but never your full
           card number.
         </p>
@@ -84,7 +84,7 @@ export default function PrivacyPage() {
       <Section heading="6. Sharing your data">
         <p>
           We do not sell your personal data. We share data only with: the sub-processors described above;
-          Paddle for payment processing; and authorities or advisers where required by law or to protect
+          Mamo for payment processing; and authorities or advisers where required by law or to protect
           our rights. Your generated content is private to your account and is not published by us.
         </p>
       </Section>

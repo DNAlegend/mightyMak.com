@@ -1,6 +1,6 @@
 // Shared chrome for the legal / policy pages (Terms, Privacy, Refunds,
 // Acceptable Use, Contact). These pages exist for two audiences: real
-// customers, and Paddle's merchant-approval reviewers — who check that a
+// customers, and payment-provider compliance reviewers — who check that a
 // storefront has clear terms, a privacy policy, a refund policy, and a way to
 // reach a real, named business. Keep them linked from every footer.
 
@@ -21,8 +21,13 @@ export const COMPANY = {
   address: "Block B, B56-179, Sharjah Research Technology & Innovation Park (SRTIP), Sharjah, United Arab Emirates",
   supportEmail: "support@vibvid.ai",
   salesEmail: "sales@vibvid.ai",
-  /** Paddle is the merchant/seller of record for all VIBVID transactions. */
-  merchantOfRecord: "Paddle.com Market Ltd",
+  /**
+   * Mamo is our payment processor (not a merchant of record): it securely
+   * handles card payments and subscriptions, while TAXNOW (FZE) remains the
+   * seller of record for all VIBVID transactions.
+   */
+  paymentProcessor: "Mamo (Mamopay Limited)",
+  paymentProcessorSite: "https://www.mamopay.com",
 } as const;
 
 /** Footer/nav links to every legal page — reused across the marketing site. */
@@ -81,9 +86,9 @@ export function LegalPage({
             ))}
           </nav>
           <p className="mt-6 text-[13px] text-faint">
-            {COMPANY.brand} is operated by {COMPANY.legalName}, registered in {COMPANY.jurisdiction}.
-            Payments and subscriptions are processed by our authorised reseller and merchant of
-            record, {COMPANY.merchantOfRecord} (Paddle).
+            {COMPANY.brand} is operated by {COMPANY.legalName}, the seller of record, registered in{" "}
+            {COMPANY.jurisdiction}. Card payments and subscriptions are processed securely by our
+            payment processor, {COMPANY.paymentProcessor}.
           </p>
           <p className="mt-2 text-[13px] text-faint">© 2026 {COMPANY.legalName}. All rights reserved.</p>
         </div>

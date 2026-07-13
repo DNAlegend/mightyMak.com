@@ -58,9 +58,9 @@ export default function ContactPage() {
         <p className="flex items-start gap-2.5">
           <CreditCard size={17} className="mt-0.5 shrink-0 text-faint" />
           <span>
-            Payments and subscriptions are processed by our authorised reseller and merchant of record,{" "}
-            <strong>{COMPANY.merchantOfRecord}</strong> (Paddle). For payment or invoice queries you can
-            also use the link on the receipt Paddle emailed you.
+            Card payments and subscriptions are processed securely by our payment processor,{" "}
+            <strong>{COMPANY.paymentProcessor}</strong>; {COMPANY.legalName} is the seller of record.
+            For payment or invoice queries, email us or use the link on the receipt Mamo emailed you.
           </span>
         </p>
       </Section>
