@@ -7,7 +7,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { chatText, llmConfigured } from "@/lib/llm";
+import { chatText, llmConfigured, llmEngine } from "@/lib/llm";
 
 export const maxDuration = 60;
 
@@ -139,5 +139,6 @@ export async function POST(req: Request) {
   if (clips.length === 0) {
     return NextResponse.json({ error: "The Strategist returned nothing usable — try again" }, { status: 502 });
   }
-  return NextResponse.json({ title, logline, direction, clips });
+  // `engine` is a debug field the UI ignores — confirms which writer ran.
+  return NextResponse.json({ title, logline, direction, clips, engine: llmEngine() });
 }
