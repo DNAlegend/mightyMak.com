@@ -1,6 +1,6 @@
 // Paddle webhook — grants credits after a verified payment.
 //
-// Security model mirrors the MamoPay webhook: we (1) verify Paddle's signature
+// Security model: we (1) verify Paddle's signature
 // over the raw body, then (2) only credit a purchase that matches a pending
 // purchase WE created, for a specific user, at the amount we recorded. Credits
 // are granted through settle_charge(), idempotent on the Paddle transaction id,

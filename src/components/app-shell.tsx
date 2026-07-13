@@ -101,21 +101,18 @@ function CreditWidget({ onBuy }: { onBuy: () => void }) {
 }
 
 /** localStorage key remembering a guest buyer's email across a redirect checkout. */
-const CHECKOUT_EMAIL_KEY = "mm-checkout-email";
-
-/** What the server hands back to start a payment (Paddle overlay or Mamo URL). */
-type CheckoutStart = PaddleStart | { provider: "mamopay"; url: string };
+const CHECKOUT_EMAIL_KEY = "vibvid-checkout-email";
 
 /**
- * Ask the server to start a checkout. Pass a `token` for a signed-in buyer, or
- * an `email` for a guest (their account is created server-side). Returns null
- * when payments aren't configured on the server (501), in which case callers
- * fall back to demo credits.
+ * Ask the server to start a Paddle checkout. Pass a `token` for a signed-in
+ * buyer, or an `email` for a guest (their account is created server-side).
+ * Returns null when payments aren't configured on the server (501), in which
+ * case callers fall back to demo credits.
  */
 async function requestCheckout(
   item: BillingItem,
   auth: { token?: string; email?: string },
-): Promise<CheckoutStart | null> {
+): Promise<PaddleStart | null> {
   const res = await fetch("/api/checkout", {
     method: "POST",
     headers: {
@@ -135,52 +132,7 @@ async function requestCheckout(
   }
   const data = await res.json();
   if (data.provider === "paddle") return { provider: "paddle", ...data } as PaddleStart;
-  if (data.url) return { provider: "mamopay", url: data.url };
   return null;
-}
-
-/**
- * MamoPay's inline checkout, embedded on our page. The hosted payment page
- * runs in an iframe and talks to us via postMessage (same protocol as Mamo's
- * official checkout-inline script): "checkout-complete" on success,
- * "closeIframe" when the payer backs out, and a `confirmation_required`
- * payload when 3-D Secure needs a full-page redirect (that flow returns via
- * the normal ?purchase=success handler).
- */
-function MamoInlineCheckout({
-  url,
-  onComplete,
-  onDismiss,
-}: {
-  url: string;
-  onComplete: () => void;
-  onDismiss: () => void;
-}) {
-  useEffect(() => {
-    const origin = new URL(url).origin;
-    function onMessage(e: MessageEvent) {
-      if (e.origin !== origin) return;
-      const data = e.data as { message?: string; type?: string; payload?: string } | string;
-      const msg = typeof data === "string" ? data : data?.message;
-      if (msg === "checkout-complete") onComplete();
-      else if (msg === "closeIframe") onDismiss();
-      else if (typeof data === "object" && data?.type === "confirmation_required" && data.payload) {
-        window.location.replace(data.payload); // 3-D Secure hop
-      }
-    }
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url]);
-
-  return (
-    <iframe
-      src={`${url}${url.includes("?") ? "&" : "?"}consumer=${encodeURIComponent(window.location.href)}`}
-      allow="payment"
-      title="Secure MamoPay checkout"
-      className="h-[600px] w-full rounded-2xl bg-transparent"
-    />
-  );
 }
 
 function BuyCreditsModal({
@@ -200,19 +152,17 @@ function BuyCreditsModal({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [payUrl, setPayUrl] = useState<string | null>(null);
   const autostarted = useRef<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setError(null);
-    setPayUrl(null);
     setSelected(autostart?.id ?? null);
   }, [open, autostart]);
 
-  // Start a real MamoPay checkout — embedded right here in the modal. Only
-  // signed-in users reach this modal (the paywall gate handles guests);
-  // without cloud keys, fall back to demo credits.
+  // Start a Paddle checkout via the hosted overlay. Only signed-in users reach
+  // this modal (the paywall gate handles guests); without cloud keys, fall back
+  // to demo credits.
   async function buy(item: BillingItem) {
     if (busy) return;
     setSelected(item.id);
@@ -235,10 +185,6 @@ function BuyCreditsModal({
           }
           return;
         }
-        if (start?.provider === "mamopay") {
-          setPayUrl(start.url); // pay on this page, in the modal
-          return;
-        }
         // null → payments not configured yet; fall through to demo.
       }
       // Demo fallback: instant credits, no charge.
@@ -259,31 +205,6 @@ function BuyCreditsModal({
     void buy(autostart);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, autostart]);
-
-  if (payUrl) {
-    return (
-      <Modal open={open} onClose={onClose} title="Complete your payment" size="lg">
-        <MamoInlineCheckout
-          url={payUrl}
-          onComplete={() => {
-            setPayUrl(null);
-            onClose();
-            onPaid();
-          }}
-          onDismiss={() => setPayUrl(null)}
-        />
-        <div className="mt-3 flex items-center justify-between">
-          <button
-            className="text-[13px] font-medium text-muted hover:text-fg"
-            onClick={() => setPayUrl(null)}
-          >
-            ← Back to packs &amp; plans
-          </button>
-          <span className="text-[12px] text-faint">Secure checkout by Paddle · USD</span>
-        </div>
-      </Modal>
-    );
-  }
 
   return (
     <Modal open={open} onClose={onClose} title="Get more credits" size="lg">
@@ -383,9 +304,8 @@ function PaywallGate({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resent, setResent] = useState(false);
-  const [payUrl, setPayUrl] = useState<string | null>(null);
-  // Set when an embedded payment completes on-page (no redirect happened), or
-  // when a free signup link is sent. `confirmMode` tailors the confirm copy.
+  // Set when the Paddle overlay completes on-page, or when a free signup link
+  // is sent. `confirmMode` tailors the confirm copy.
   const [paidEmail, setPaidEmail] = useState<string | null>(null);
   const [confirmMode, setConfirmMode] = useState<"paid" | "free">("paid");
 
@@ -418,12 +338,8 @@ function PaywallGate({
       }
       // Remember who's paying in case a redirect checkout forces a round trip.
       localStorage.setItem(CHECKOUT_EMAIL_KEY, email.trim().toLowerCase());
-      if (start.provider === "paddle") {
-        const ok = await openPaddleCheckout(start);
-        if (ok) handlePaid(); // account already created server-side; confirm email
-        return;
-      }
-      setPayUrl(start.url); // MamoPay — pay right here on the page
+      const ok = await openPaddleCheckout(start);
+      if (ok) handlePaid(); // account already created server-side; confirm email
     } catch (e) {
       setError(e instanceof Error ? e.message : "Checkout failed");
     } finally {
@@ -461,8 +377,8 @@ function PaywallGate({
     }
   }
 
-  // Embedded payment finished without leaving the page — email the sign-in
-  // link ourselves (the redirect handler would have done this otherwise).
+  // Paddle overlay finished without leaving the page — email the sign-in link
+  // ourselves (the redirect handler would have done this otherwise).
   function handlePaid() {
     const e = email.trim().toLowerCase();
     localStorage.removeItem(CHECKOUT_EMAIL_KEY);
@@ -470,7 +386,6 @@ function PaywallGate({
       email: e,
       options: { emailRedirectTo: `${window.location.origin}/app` },
     });
-    setPayUrl(null);
     setPaidEmail(e);
   }
 
@@ -511,34 +426,6 @@ function PaywallGate({
             >
               Wrong email? Start over
             </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (payUrl && paid) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-4 py-10">
-        <div className="w-full max-w-lg">
-          <div className="mb-5 text-center">
-            <h1 className="font-display text-2xl font-bold tracking-tight">Complete your payment</h1>
-            <p className="mt-1.5 text-[14px] text-muted">
-              VIBVID {paid.label} — {paid.priceLabel}/mo · {paid.credits.toLocaleString()} credits
-              every month, for <span className="font-medium text-fg">{email.trim()}</span>.
-            </p>
-          </div>
-          <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_16px_40px_-24px_rgba(16,18,27,0.3)]">
-            <MamoInlineCheckout url={payUrl} onComplete={handlePaid} onDismiss={() => setPayUrl(null)} />
-          </div>
-          <div className="mt-3 flex items-center justify-between">
-            <button
-              className="text-[13px] font-medium text-muted hover:text-fg"
-              onClick={() => setPayUrl(null)}
-            >
-              ← Back to plans
-            </button>
-            <span className="text-[12px] text-faint">Secure checkout by Paddle · USD</span>
           </div>
         </div>
       </div>
@@ -706,7 +593,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Returning from MamoPay checkout. Signed in: the webhook adds credits
+  // Returning from a redirect checkout. Signed in: the webhook adds credits
   // async, so poll the cloud a few times for them to land. Guest checkout:
   // their account already exists (created at checkout) and holds the credits —
   // email them a confirmation link that signs them in and confirms the account.
