@@ -88,6 +88,9 @@ interface StoreState {
   setDraftPlanRef: (ref: { planId: string; ideaId: string } | null) => void;
 
   // plans
+  /** The production currently open in Plan / Post (null = the productions list). */
+  activePlanId: string | null;
+  setActivePlan: (id: string | null) => void;
   addPlan: (
     brief: string,
     ideas: Array<Pick<PlanIdea, "title" | "hook" | "prompt" | "durationSec" | "role">>,
@@ -298,6 +301,7 @@ export const useStore = create<StoreState>()(
       draftElements: null,
       draftRefAssetId: null,
       plans: [],
+      activePlanId: null,
       draftPlanRef: null,
 
       setHasHydrated: (v) => set({ hasHydrated: v }),
@@ -313,7 +317,12 @@ export const useStore = create<StoreState>()(
         if (getCloudUser() !== userId) return;
         // Plans load separately (missing table degrades to local-only plans).
         void fetchPlans().then((plans) => {
-          if (plans && getCloudUser() === userId) set({ plans });
+          if (plans && getCloudUser() === userId)
+            set((s) => ({
+              plans,
+              // Drop a stale pointer to a production that no longer exists.
+              activePlanId: plans.some((p) => p.id === s.activePlanId) ? s.activePlanId : null,
+            }));
         });
         if (!cloud) {
           // Fetch failed — fall back to what's on screen rather than hanging.
@@ -376,6 +385,7 @@ export const useStore = create<StoreState>()(
           assets: [],
           categories: [],
           plans: [],
+          activePlanId: null,
           draftPlanRef: null,
           hasHydrated: true,
         });
@@ -471,6 +481,8 @@ export const useStore = create<StoreState>()(
 
       setDraftPlanRef: (ref) => set({ draftPlanRef: ref }),
 
+      setActivePlan: (id) => set({ activePlanId: id }),
+
       addPlan: (brief, ideas, meta) => {
         const plan: Plan = {
           id: uid("plan"),
@@ -479,15 +491,17 @@ export const useStore = create<StoreState>()(
           ...meta,
           ideas: ideas.map((i) => ({ ...i, id: uid("idea") })),
         };
-        // One plan at a time — a new brief replaces the current plan.
-        get().plans.forEach((old) => deletePlanRow(old.id));
-        set({ plans: [plan] });
+        // Newest production first; it becomes the open one.
+        set((s) => ({ plans: [plan, ...s.plans], activePlanId: plan.id }));
         pushPlan(plan);
         return plan;
       },
 
       removePlan: (id) => {
-        set((s) => ({ plans: s.plans.filter((p) => p.id !== id) }));
+        set((s) => ({
+          plans: s.plans.filter((p) => p.id !== id),
+          activePlanId: s.activePlanId === id ? null : s.activePlanId,
+        }));
         deletePlanRow(id);
       },
 
@@ -639,6 +653,7 @@ export const useStore = create<StoreState>()(
         assets: s.assets,
         categories: s.categories,
         plans: s.plans,
+        activePlanId: s.activePlanId,
       }),
       onRehydrateStorage: () => (state) => {
         // A render interrupted by a tab close shouldn't hang — settle it with a sample.

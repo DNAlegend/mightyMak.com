@@ -45,7 +45,10 @@ export function PostView() {
   const setDraftPlanRef = useStore((s) => s.setDraftPlanRef);
   const markIdeaSent = useStore((s) => s.markIdeaSent);
 
-  const plan = plans[0] ?? null;
+  const activePlanId = useStore((s) => s.activePlanId);
+  const setActivePlan = useStore((s) => s.setActivePlan);
+  // Cut the open production; fall back to the newest one.
+  const plan = plans.find((p) => p.id === activePlanId) ?? plans[0] ?? null;
 
   const shots: ShotRow[] = useMemo(() => {
     if (!plan) return [];
@@ -301,7 +304,44 @@ export function PostView() {
         </p>
       </header>
 
-      <Card className="p-5">
+      {/* Which movie is on the editing table */}
+      {plans.length > 1 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-[12px] font-medium uppercase tracking-wider text-faint">
+            Production
+          </span>
+          {plans.map((p) => {
+            const done = p.ideas.filter(
+              (i) => i.jobId && videos.find((v) => v.id === i.jobId)?.status === "succeeded",
+            ).length;
+            return (
+              <button
+                key={p.id}
+                onClick={() => {
+                  if (exporting) cancelExport();
+                  else stopPlayback();
+                  setActivePlan(p.id);
+                }}
+                className={cn(
+                  "max-w-[240px] truncate rounded-full border px-3 py-1 text-[13px] font-medium transition-colors",
+                  plan?.id === p.id
+                    ? "border-accent/40 bg-accent-soft text-fg"
+                    : "border-line text-muted hover:border-faint hover:text-fg",
+                )}
+                title={p.title || p.brief}
+              >
+                {p.title || p.brief}
+                <span className="ml-1.5 text-[11px] text-faint">
+                  {done}/{p.ideas.length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Keyed by production so the player fully resets when switching movies. */}
+      <Card key={plan.id} className="p-5">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-display text-lg font-bold tracking-tight">
             {plan.title || plan.brief}

@@ -7,6 +7,7 @@ import {
   Loader2,
   Sparkles,
   Trash2,
+  ArrowLeft,
   ArrowRight,
   Film,
   Check,
@@ -81,8 +82,10 @@ export function PlanView() {
   /** The one shot whose full script is open — keeps the production scannable. */
   const [openId, setOpenId] = useState<string | null>(null);
 
-  // One production at a time — the current cut.
-  const plan = plans[0] ?? null;
+  const activePlanId = useStore((s) => s.activePlanId);
+  const setActivePlan = useStore((s) => s.setActivePlan);
+  // The production that's open; null shows the productions list.
+  const plan = plans.find((p) => p.id === activePlanId) ?? null;
   const jobsById = useMemo(() => {
     const m = new Map<string, VideoJob>();
     for (const v of videos) m.set(v.id, v);
@@ -128,9 +131,6 @@ export function PlanView() {
   async function writePlan() {
     const goal = brief.trim();
     if (!goal || busy) return;
-    if (plan && !confirm("Direct a new production? It replaces this one (videos already made stay in My Videos).")) {
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -215,17 +215,37 @@ export function PlanView() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <header className="mb-5">
-        <h1 className="text-2xl font-bold tracking-tight">Plan</h1>
-        <p className="mt-1 text-sm text-muted">
-          The directing room. Give the Strategist a goal or a whole story, pick a runtime and your
-          cast — it directs the production shot by shot: each shot 5, 10 or 15s, with the reason
-          and the full script. Produce them one by one in Make.
-        </p>
-      </header>
+      {plan ? (
+        /* An open production: back to the list instead of the composer. */
+        <div className="mb-4 flex items-center">
+          <button
+            onClick={() => setActivePlan(null)}
+            className="flex items-center gap-1.5 text-[13px] font-medium text-muted transition-colors hover:text-fg"
+          >
+            <ArrowLeft size={15} /> All productions
+          </button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto gap-1.5"
+            onClick={() => setActivePlan(null)}
+          >
+            <Clapperboard size={14} /> New production
+          </Button>
+        </div>
+      ) : (
+        <>
+          <header className="mb-5">
+            <h1 className="text-2xl font-bold tracking-tight">Plan</h1>
+            <p className="mt-1 text-sm text-muted">
+              The directing room. Give the Strategist a goal or a whole story, pick a runtime and
+              your cast — it directs a production shot by shot: each shot 5, 10 or 15s, with the
+              reason and the full script. Produce them one by one in Make.
+            </p>
+          </header>
 
-      {/* The brief */}
-      <div className="rounded-[var(--radius-xl2)] border border-line bg-surface p-4">
+          {/* The brief */}
+          <div className="rounded-[var(--radius-xl2)] border border-line bg-surface p-4">
         <textarea
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
@@ -300,23 +320,105 @@ export function PlanView() {
           </span>
           <Button className="ml-auto shrink-0" onClick={writePlan} disabled={busy || !brief.trim()}>
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Clapperboard size={16} />}
-            {busy ? "Directing…" : plan ? "New production" : "Direct it"}
+            {busy ? "Directing…" : "Direct it"}
           </Button>
         </div>
         {error && <p className="mt-2 text-sm text-danger">{error}</p>}
-      </div>
+          </div>
+        </>
+      )}
 
-      {/* The production */}
-      {!plan || plan.ideas.length === 0 ? (
-        <div className="mt-6">
-          <EmptyState
-            icon={<Lightbulb size={24} />}
-            title="No production yet"
-            description="Describe your goal or story above — the Strategist directs it into shots with a recommended length and a full script for each."
-          />
-        </div>
+      {/* The productions */}
+      {!plan ? (
+        plans.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState
+              icon={<Lightbulb size={24} />}
+              title="No productions yet"
+              description="Describe your goal or story above — the Strategist directs it into shots with a recommended length and a full script for each."
+            />
+          </div>
+        ) : (
+          <div className="mt-6">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[12px] font-semibold uppercase tracking-wider text-faint">
+                Your productions
+              </span>
+              <span className="text-[11px] text-faint">{plans.length}</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {plans.map((p) => {
+                const produced = p.ideas.filter((i) => stateOf(i) === "produced").length;
+                const secs = p.ideas.reduce((sum, i) => sum + (i.durationSec ?? 0), 0);
+                const thumbs = p.ideas
+                  .map((i) => (i.jobId ? jobsById.get(i.jobId) : undefined))
+                  .filter((j) => j && j.status === "succeeded" && j.posterUrl)
+                  .slice(0, 3) as VideoJob[];
+                const complete = produced === p.ideas.length && p.ideas.length > 0;
+                return (
+                  <Card key={p.id} className="relative overflow-hidden p-0">
+                    <button
+                      onClick={() => setActivePlan(p.id)}
+                      className="block w-full text-left transition-colors hover:bg-surface-2/50"
+                    >
+                      <div className="flex h-20 bg-black/90">
+                        {thumbs.length ? (
+                          thumbs.map((j, i) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={i}
+                              src={j.posterUrl}
+                              alt=""
+                              className="h-full min-w-0 flex-1 object-cover"
+                            />
+                          ))
+                        ) : (
+                          <div className="flex flex-1 items-center justify-center">
+                            <Clapperboard size={18} className="text-white/30" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3.5">
+                        <p className="truncate font-display text-[14.5px] font-bold tracking-tight">
+                          {p.title || p.brief}
+                        </p>
+                        {p.logline && (
+                          <p className="mt-0.5 truncate text-[12.5px] text-muted">{p.logline}</p>
+                        )}
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <Badge tone="neutral">
+                            {p.ideas.length} {p.ideas.length === 1 ? "shot" : "shots"}
+                            {secs > 0 && <> · {fmtSec(secs)}</>}
+                          </Badge>
+                          <Badge tone={complete ? "teal" : "neutral"}>
+                            {complete && <Check size={11} />}
+                            {produced}/{p.ideas.length} produced
+                          </Badge>
+                          <span className="ml-auto text-[11px] text-faint">
+                            {timeAgo(p.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm("Delete this production? Videos already made stay in My Videos.")) {
+                          removePlan(p.id);
+                        }
+                      }}
+                      className="absolute right-2 top-2 rounded-lg bg-black/50 p-1.5 text-white/70 transition-colors hover:bg-black/70 hover:text-white"
+                      aria-label="Delete production"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="space-y-4">
           {/* Treatment header */}
           <Card className="p-5">
             <div className="flex items-start justify-between gap-3">
