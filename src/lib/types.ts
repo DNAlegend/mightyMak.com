@@ -69,28 +69,36 @@ export interface Category {
 
 /* ---------------------------------- Plans --------------------------------- */
 
-/** One video concept inside a plan — becomes a job when sent to Make. */
+/** One clip inside a plan — becomes a job when sent to Make. */
 export interface PlanIdea {
   id: string;
-  /** Punchy concept name, e.g. "POV: your desk at 3am". */
+  /** Punchy clip name, e.g. "POV: your desk at 3am". */
   title: string;
-  /** Why it stops the scroll. */
+  /** Why this clip earns its place (and its length) in the cut. */
   hook: string;
-  /** Detailed second-by-second production plan for the video model. */
+  /** Detailed second-by-second production script for the video model. */
   prompt: string;
-  /** The clip length this plan was written for. */
+  /** The Director's role for this clip in the sequence: Hook, Build, Payoff… */
+  role?: string;
+  /** Recommended clip length (5 / 10 / 15). */
   durationSec?: number;
-  /** Set when the idea was handed to Make. */
+  /** Set when the clip was handed to Make. */
   sentAt?: number;
-  /** Set when a generation was started from this idea — the provenance link. */
+  /** Set when a generation was started from this clip — the provenance link. */
   jobId?: string;
 }
 
-/** A planning session: the creator's brief and the ideas the Director produced. */
+/** A planning session: the creator's brief, directed into a sequence of clips. */
 export interface Plan {
   id: string;
   brief: string;
   createdAt: number;
+  /** The piece's name, from the Director. */
+  title?: string;
+  /** One-sentence pitch for the whole piece. */
+  logline?: string;
+  /** Overall treatment: arc, tone, continuity notes across clips. */
+  direction?: string;
   ideas: PlanIdea[];
 }
 

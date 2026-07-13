@@ -148,16 +148,25 @@ function planToRow(p: Plan): Row {
     id: p.id,
     user_id: activeUserId,
     brief: p.brief,
-    ideas: p.ideas,
+    // The jsonb column carries plan meta too (v2 wrapper) — no extra columns.
+    ideas: { v: 2, title: p.title, logline: p.logline, direction: p.direction, clips: p.ideas },
     created_at: p.createdAt,
   };
 }
 
 function rowToPlan(r: Row): Plan {
+  const raw = r.ideas as
+    | Plan["ideas"]
+    | { v: 2; title?: string; logline?: string; direction?: string; clips: Plan["ideas"] }
+    | null;
+  const wrapped = raw && !Array.isArray(raw) ? raw : null;
   return {
     id: r.id as string,
     brief: r.brief as string,
-    ideas: (r.ideas as Plan["ideas"]) ?? [],
+    title: wrapped?.title,
+    logline: wrapped?.logline,
+    direction: wrapped?.direction,
+    ideas: (wrapped ? wrapped.clips : (raw as Plan["ideas"])) ?? [],
     createdAt: Number(r.created_at),
   };
 }

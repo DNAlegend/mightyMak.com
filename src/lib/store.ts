@@ -90,7 +90,8 @@ interface StoreState {
   // plans
   addPlan: (
     brief: string,
-    ideas: Array<Pick<PlanIdea, "title" | "hook" | "prompt" | "durationSec">>,
+    ideas: Array<Pick<PlanIdea, "title" | "hook" | "prompt" | "durationSec" | "role">>,
+    meta?: Pick<Plan, "title" | "logline" | "direction">,
   ) => Plan;
   removePlan: (id: string) => void;
   markIdeaSent: (planId: string, ideaId: string) => void;
@@ -470,11 +471,12 @@ export const useStore = create<StoreState>()(
 
       setDraftPlanRef: (ref) => set({ draftPlanRef: ref }),
 
-      addPlan: (brief, ideas) => {
+      addPlan: (brief, ideas, meta) => {
         const plan: Plan = {
           id: uid("plan"),
           brief,
           createdAt: Date.now(),
+          ...meta,
           ideas: ideas.map((i) => ({ ...i, id: uid("idea") })),
         };
         // One plan at a time — a new brief replaces the current plan.

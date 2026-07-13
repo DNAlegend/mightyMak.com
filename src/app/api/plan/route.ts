@@ -1,8 +1,9 @@
-// The Strategist — turns a creator's goal ("give me 5 videos that will go
-// viral for my brand") into distinct, production-ready video concepts.
-// Script writing runs on Claude when ANTHROPIC_API_KEY is set (Ark engine
-// otherwise — see src/lib/llm.ts). Each concept lands on the Plan surface,
-// where the creator can send it to Make as a job. Nothing is generated here.
+// The Strategist — the studio's directing room. Takes a creator's goal or a
+// whole story and directs it into a sequence of clips: for each clip a
+// recommended length (5 / 10 / 15s), its role in the cut, why that length,
+// and a complete second-by-second script. Script writing runs on Claude when
+// ANTHROPIC_API_KEY is set (Ark engine otherwise — see src/lib/llm.ts).
+// Each clip lands on the Plan surface, where the creator sends it to Make.
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -10,44 +11,68 @@ import { chatText, llmConfigured } from "@/lib/llm";
 
 export const maxDuration = 60;
 
-const SYSTEM = `You are a viral short-form video strategist and commercial director working inside an AI video studio.
-Given a creator's goal and a clip length, invent the requested number of DISTINCT, concrete video concepts that could perform on TikTok / Reels / Shorts.
-For each concept provide:
-- "title": a punchy concept name, at most 8 words, in the same language as the goal.
-- "hook": one sentence on why it stops the scroll, same language as the goal.
-- "prompt": an EXTREMELY DETAILED production blueprint for a cinematic AI video generation model — ALWAYS in English, written for a clip of EXACTLY the given length.
-Blueprint rules:
-- Structure it as a second-by-second timeline ("0-2s: ... 2-5s: ... 5-8s: ...") whose beats add up to the full duration — never shorter, never longer.
-- Every beat must be concrete and visual: one subject with an exact action, setting and props, camera movement and framing (macro, POV, dolly-in, whip-pan, orbit, crash-zoom...), lighting and color, pacing and transitions. Prefer one strong action per beat over several vague ones.
-- The model generates NATIVE AUDIO: after the timeline, add one "Audio:" sentence directing sound design — ambience, foley synced to the action, music energy, and (only when it strengthens the concept) one short spoken line in double quotes with the speaker described.
-- End with one sentence of overall mood, style and color grade.
-- NEVER request on-screen text, captions, subtitles, watermarks, logos or UI overlays — the model renders text poorly.
-- Keep one consistent protagonist and location logic across beats so the clip cuts together as one continuous idea.
-- 100–180 words per prompt. This is the complete blueprint the video model shoots from — the more precise, the better the result.
-Never reference real brand names, logos, trademarked or copyrighted characters, franchises, or real public figures.
-Make the concepts genuinely different from each other: different formats (POV, unboxing, transformation, walkthrough, testimonial...), settings and emotional angles.
-Output STRICT JSON only, no markdown fences, exactly: {"ideas":[{"title":"...","hook":"...","prompt":"..."}]}`;
+const SYSTEM = `You are a seasoned film director and viral short-form strategist working inside an AI video studio.
+The creator gives you a goal, an idea, or a WHOLE STORY. Direct it into a sequence of clips a cinematic AI video model will shoot — one generation per clip.
 
-const IDEAS_SCHEMA = {
+FIRST decide the cut:
+- How many clips the piece truly needs (1–5). A single simple idea is ONE clip. A story gets broken into scenes that cut together.
+- For EACH clip, recommend its length from exactly {5, 10, 15} seconds and know why:
+  · 5s — one beat: a hook, a punchline, a single reveal or transformation. No room for more.
+  · 10s — two movements: build then payoff, question then answer, before then after.
+  · 15s — a mini-narrative: setup, turn, payoff. Only for beats that earn the time.
+Sequence like a director: open on the strongest hook, escalate, land the payoff or call-to-action last.
+
+CRITICAL — every clip is generated INDEPENDENTLY, with no memory of the others. Each clip's script must be fully self-contained AND keep continuity: repeat the same precise description of the protagonist (age, look, wardrobe), the world, and the color grade in every clip, word for word where possible, so the clips cut together as one piece.
+
+Respond with STRICT JSON only, no markdown fences:
+{"title":"...","logline":"...","direction":"...","clips":[{"title":"...","role":"...","durationSec":5,"why":"...","prompt":"..."}]}
+- "title": name of the whole piece, same language as the creator's goal. At most 8 words.
+- "logline": one-sentence pitch for the piece, same language as the goal.
+- "direction": 2–3 sentences of overall treatment — arc across the clips, tone, look, continuity anchors. Same language as the goal.
+- clips[].title: punchy clip name, same language as the goal, at most 8 words.
+- clips[].role: the clip's job in the cut, ONE word or two — e.g. "Hook", "Build", "Reveal", "Payoff", "CTA".
+- clips[].durationSec: 5, 10 or 15 — your recommendation.
+- clips[].why: one sentence, same language as the goal: why this beat gets this length.
+- clips[].prompt: the shooting script — ALWAYS in English, written for EXACTLY that clip's length:
+  · A second-by-second timeline ("0-2s: ... 2-5s: ...") whose beats add up to the full duration — never shorter, never longer.
+  · Every beat concrete and visual: one subject with an exact action, setting and props, camera movement and framing (macro, POV, dolly-in, whip-pan, orbit, crash-zoom...), lighting and color, pacing and transitions. One strong action per beat.
+  · The model generates NATIVE AUDIO: after the timeline add one "Audio:" sentence — ambience, foley synced to the action, music energy, and (only when it strengthens the clip) one short spoken line in double quotes with the speaker described.
+  · End with one sentence of overall mood, style and color grade — identical across clips.
+  · NEVER request on-screen text, captions, subtitles, watermarks, logos or UI overlays — the model renders text poorly.
+  · 100–180 words.
+Never reference real brand names, logos, trademarked or copyrighted characters, franchises, or real public figures.`;
+
+const PLAN_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["ideas"],
+  required: ["title", "logline", "direction", "clips"],
   properties: {
-    ideas: {
+    title: { type: "string" },
+    logline: { type: "string" },
+    direction: { type: "string" },
+    clips: {
       type: "array",
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "hook", "prompt"],
+        required: ["title", "role", "durationSec", "why", "prompt"],
         properties: {
           title: { type: "string" },
-          hook: { type: "string" },
+          role: { type: "string" },
+          durationSec: { type: "integer", enum: [5, 10, 15] },
+          why: { type: "string" },
           prompt: { type: "string" },
         },
       },
     },
   },
 };
+
+/** Snap an arbitrary model-suggested length to the offered 5/10/15. */
+function snapDuration(n: unknown): number {
+  const v = Number(n) || 5;
+  return [5, 10, 15].reduce((best, d) => (Math.abs(d - v) < Math.abs(best - v) ? d : best), 5);
+}
 
 export async function POST(req: Request) {
   if (!llmConfigured()) {
@@ -65,48 +90,54 @@ export async function POST(req: Request) {
   if (!userData?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const brief = typeof body?.brief === "string" ? body.brief.trim().slice(0, 2000) : "";
+  const brief = typeof body?.brief === "string" ? body.brief.trim().slice(0, 4000) : "";
   if (!brief) return NextResponse.json({ error: "Empty brief" }, { status: 400 });
-  const count = Math.min(10, Math.max(1, Number(body?.count) || 5));
-  // Seedance accepts 4–15s; the UI offers 5/10/15.
-  const durationSec = Math.min(15, Math.max(4, Number(body?.durationSec) || 5));
 
   let raw: string;
   try {
     raw = await chatText({
       system: SYSTEM,
-      user: `Number of concepts: ${count}.\nClip length: exactly ${durationSec} seconds.\nCreator's goal: ${brief}`,
-      maxTokens: 550 * count + 200,
+      user: `Creator's goal or story: ${brief}`,
+      maxTokens: 3600,
       temperature: 0.9,
-      jsonSchema: IDEAS_SCHEMA,
+      jsonSchema: PLAN_SCHEMA,
     });
   } catch (e) {
     const detail = e instanceof Error ? e.message.slice(0, 200) : "unknown error";
     return NextResponse.json({ error: `Strategist error: ${detail}` }, { status: 502 });
   }
+
   // Models sometimes wrap JSON in fences or prose — extract the object.
   const match = raw.match(/\{[\s\S]*\}/);
-  let ideas: Array<{ title: string; hook: string; prompt: string }> = [];
+  let title = "";
+  let logline = "";
+  let direction = "";
+  let clips: Array<{ title: string; role: string; durationSec: number; why: string; prompt: string }> = [];
   try {
     const parsed = JSON.parse(match ? match[0] : raw);
-    ideas = (Array.isArray(parsed?.ideas) ? parsed.ideas : [])
+    title = typeof parsed?.title === "string" ? parsed.title.slice(0, 120) : "";
+    logline = typeof parsed?.logline === "string" ? parsed.logline.slice(0, 300) : "";
+    direction = typeof parsed?.direction === "string" ? parsed.direction.slice(0, 700) : "";
+    clips = (Array.isArray(parsed?.clips) ? parsed.clips : [])
       .filter(
-        (i: unknown): i is { title: string; hook: string; prompt: string } =>
-          !!i &&
-          typeof (i as { title?: unknown }).title === "string" &&
-          typeof (i as { prompt?: unknown }).prompt === "string",
+        (c: unknown): c is { title: string; prompt: string; role?: string; why?: string; durationSec?: number } =>
+          !!c &&
+          typeof (c as { title?: unknown }).title === "string" &&
+          typeof (c as { prompt?: unknown }).prompt === "string",
       )
-      .map((i: { title: string; hook?: string; prompt: string }) => ({
-        title: String(i.title).slice(0, 120),
-        hook: String(i.hook ?? "").slice(0, 300),
-        prompt: String(i.prompt).slice(0, 1200),
+      .map((c: { title: string; prompt: string; role?: string; why?: string; durationSec?: number }) => ({
+        title: String(c.title).slice(0, 120),
+        role: String(c.role ?? "").slice(0, 24),
+        durationSec: snapDuration(c.durationSec),
+        why: String(c.why ?? "").slice(0, 300),
+        prompt: String(c.prompt).slice(0, 1400),
       }))
-      .slice(0, count);
+      .slice(0, 6);
   } catch {
-    ideas = [];
+    clips = [];
   }
-  if (ideas.length === 0) {
+  if (clips.length === 0) {
     return NextResponse.json({ error: "The Strategist returned nothing usable — try again" }, { status: 502 });
   }
-  return NextResponse.json({ ideas });
+  return NextResponse.json({ title, logline, direction, clips });
 }
