@@ -7,23 +7,22 @@ const grotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-grotesk", 
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mightymak.vercel.app"),
-  title: "MightyMak — AI Video & Image Generation Studio",
+  title: "MightyMak.ai — Your AI Video Studio",
   description:
-    "MightyMak is your AI production studio — organize your brand assets, generate video and images with best-in-class AI models, and manage every output in one place.",
+    "Plan the concept, cast your characters, and produce scroll-stopping video with native audio — cheap drafts to iterate, full 1080p when it counts. One studio, every video managed.",
   openGraph: {
-    title: "MightyMak — AI Video & Image Generation Studio",
+    title: "MightyMak.ai — Your AI Video Studio",
     description:
-      "Organize your brand's characters, wardrobe, scenes and audio — then generate on-brand video and images in seconds.",
+      "Plan it, cast it, make it — AI video with consistent characters, from draft to 1080p production.",
     url: "/",
-    siteName: "MightyMak",
+    siteName: "MightyMak.ai",
     images: [{ url: "/generated/hero-neon-city.png", width: 1280, height: 720 }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "MightyMak — AI Video & Image Generation Studio",
-    description:
-      "Your AI video & image studio, one prompt away.",
+    title: "MightyMak.ai — Your AI Video Studio",
+    description: "Your AI video studio, one prompt away.",
     images: ["/generated/hero-neon-city.png"],
   },
 };

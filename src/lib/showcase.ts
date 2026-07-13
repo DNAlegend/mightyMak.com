@@ -31,7 +31,7 @@ export const HERO: ShowcaseMedia = {
   ...resolve("hero-video", generated["hero-neon-city"] ?? "/art/hero-neon-city.svg"),
   poster: generated["hero-neon-city"] ?? "/art/hero-neon-city.svg",
   label: "Neon samurai in rain-soaked Tokyo",
-  tag: "Mak Pro",
+  tag: "Mak Production",
 };
 
 /** The prompt shown typed into the hero's mock studio bar. */
@@ -42,7 +42,7 @@ export const HERO_PROMPT =
 export const HERO_CHIPS: ShowcaseMedia[] = [
   { id: "chip-char", type: "image", src: "/studio/cast-neon-samurai.svg", label: "Neon Samurai", tag: "Character" },
   { id: "chip-scene", type: "image", src: "/studio/set-cloud-temple.svg", label: "Cloud Temple", tag: "Scene" },
-  { id: "chip-dress", type: "image", src: "/studio/dress-evening-gown.svg", label: "Evening Gown", tag: "Dress" },
+  { id: "chip-dress", type: "image", src: "/studio/dress-evening-gown.svg", label: "Evening Gown", tag: "Wardrobe" },
 ];
 
 const TILE = (n: string, label: string): ShowcaseMedia => ({

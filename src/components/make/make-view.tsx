@@ -643,9 +643,8 @@ export function MakeView({ mode }: { mode?: Modality }) {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="mb-4 flex items-center justify-center gap-2 text-[13px] font-semibold text-muted">
-        <span className="text-base leading-none">{getModel(modelId).glyph}</span> {getModel(modelId).name}
-      </div>
+      {/* The header is the page title; the model is picked in the format bar below. */}
+      <h1 className="mb-4 text-center text-xl font-bold tracking-tight">Make</h1>
 
       <Card className="overflow-hidden">
         <div className="p-5">

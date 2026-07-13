@@ -2,14 +2,14 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   Sparkles,
-  FolderOpen,
-  Film,
   ArrowRight,
   Check,
   ChevronDown,
   Wand2,
   Layers,
   Clapperboard,
+  Lightbulb,
+  UserRound,
   Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -121,12 +121,13 @@ function Hero() {
           <Sparkles size={13} className="text-accent-2" /> Powered by our own MightyMak engine
         </div>
         <h1 className="font-display mx-auto mt-5 max-w-4xl text-4xl font-bold leading-[1.07] tracking-tight sm:text-[56px]">
-          Your AI video &amp; image studio,
+          Your AI video studio,
           <br className="hidden sm:block" /> <span className="gradient-text">one prompt away.</span>
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-[17px] leading-relaxed text-muted">
-          Organize your brand&apos;s characters, wardrobe, scenes and audio — then generate on-brand
-          video and images with best-in-class AI models. One simple studio, every output managed.
+          Plan the concept, cast your characters, and produce scroll-stopping video — cheap
+          drafts to iterate, full 1080p with native audio when it counts. One studio, every
+          video managed.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <CTA href={APP}>
@@ -144,7 +145,7 @@ function Hero() {
             <div className="relative aspect-video w-full bg-black">
               <MediaTile m={HERO} />
               <div className="absolute right-3 top-3 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white/85 backdrop-blur-md">
-                Mak Pro · 1080p · 5s
+                Mak Production · 1080p · 5s
               </div>
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-5">
                 <div className="flex items-center gap-2.5 rounded-xl border border-white/15 bg-black/45 px-3.5 py-2.5 backdrop-blur-md">
@@ -188,7 +189,7 @@ function FloatChip({ m }: { m: ShowcaseMedia }) {
 }
 
 function ModelBand() {
-  const items = ["Mak Pro", "Mak Fast", "Mak Mini", "Mak Image", "+ more soon"];
+  const items = ["Mak Production", "Mak Draft", "The Strategist", "The Director", "+ more soon"];
   return (
     <section className="border-y border-line bg-surface-2/50">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-6 py-5">
@@ -203,19 +204,19 @@ function ModelBand() {
 
 const FEATURES = [
   {
-    icon: FolderOpen,
-    title: "Your brand, organized",
-    body: "Upload characters, wardrobe, scenes, dances and audio into one library. Bundle a face, a reference clip and a voice into a single reusable identity.",
+    icon: Lightbulb,
+    title: "Plan it",
+    body: "Tell the Strategist your goal — “a video that goes viral for my brand” — and get a detailed second-by-second blueprint, ready to shoot.",
   },
   {
-    icon: Sparkles,
-    title: "Make in one click",
-    body: "Describe a shot or assemble it from your assets, pick a model, and generate. Video or image — the controls adapt to whatever model you choose.",
+    icon: UserRound,
+    title: "Cast it",
+    body: "Turn a selfie or a description into a full character sheet — every angle in one image, an optional voice — and reuse the same character in every video.",
   },
   {
-    icon: Film,
-    title: "Manage everything",
-    body: "Every output lands in My Videos with the prompt, model and source assets attached. Re-roll, make variations, or promote a keeper back into your assets.",
+    icon: Clapperboard,
+    title: "Make it",
+    body: "Draft takes for pennies, then produce in full 1080p with native audio. Every video lands in My Videos with its plan, prompt and references attached.",
   },
 ];
 
@@ -224,7 +225,7 @@ function Features() {
     <section id="features" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">One studio, the whole pipeline</h2>
-        <p className="mt-3 text-[17px] text-muted">From raw brand assets to finished, managed content — without juggling five different tools.</p>
+        <p className="mt-3 text-[17px] text-muted">From brief to published video — plan, cast, make and manage in one place.</p>
       </div>
       <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-3">
         {FEATURES.map((f) => (
@@ -242,9 +243,9 @@ function Features() {
 }
 
 const STEPS = [
-  { n: "1", icon: Layers, title: "Build your library", body: "Organize your assets into five classes — Characters, Dresses, Scenes, Dances and Audio. My library and Business library, side by side." },
-  { n: "2", icon: Wand2, title: "Make your shot", body: "Type a prompt, or pull assets into the slots to compose one. Choose a video or image model and hit generate." },
-  { n: "3", icon: Clapperboard, title: "Manage & reuse", body: "Find every clip and image in My Videos, see exactly what made it, and remix or promote it into a new asset." },
+  { n: "1", icon: Lightbulb, title: "Plan", body: "Brief the Strategist and pick a length — it writes the whole video, beat by beat. Open the plan in Make when it reads right." },
+  { n: "2", icon: Layers, title: "Cast & collect", body: "Create characters, and drop your product shots, clips, sound and scripts into Assets — the raw material of every shot." },
+  { n: "3", icon: Wand2, title: "Make & publish", body: "Add references, pick Draft or Production quality, generate. Review in My Videos, remix what works, download and post." },
 ];
 
 function Steps() {
@@ -463,7 +464,7 @@ function Pricing() {
                 <div className="mt-0.5 text-[12px] text-faint">{p.credits} credits / month</div>
               </div>
 
-              <ul className="mt-4 space-y-2.5 border-t border-line pt-4">
+              <ul className="mt-4 flex-1 space-y-2.5 border-t border-line pt-4">
                 {p.perks.map((perk) => (
                   <li key={perk} className="flex items-start gap-2.5 text-[13px] text-fg">
                     <Check size={15} className="mt-0.5 shrink-0 text-teal" /> {perk}
@@ -492,11 +493,11 @@ function Pricing() {
 const FAQS = [
   {
     q: "What can I actually generate?",
-    a: "Real videos (5–15s clips at up to 2K, with native audio) and high-detail images, rendered by our own MightyMak engine. Vertical UGC ads, product films, fashion clips, brand spots, stills — pick a purpose and the studio configures the right format.",
+    a: "Real 4–15 second videos with native audio, rendered by our own MightyMak engine — vertical UGC ads, product films, fashion clips, brand spots. Draft quality for fast iteration, up to full 1080p Production quality for the final cut.",
   },
   {
     q: "How do my assets change the output?",
-    a: "Pick a product, character, wardrobe or scene from your library and it steers the shot two ways: it's woven into the prompt, and its image drives the video's first frame — so the sneaker in your clip is your sneaker, not a lookalike.",
+    a: "Add pictures, clips, sound and scripts to a shot and they steer it directly: images set the exact frames or act as identity references, clips lend their motion, and your character's sheet keeps the same face in every video — so the sneaker in your clip is your sneaker, not a lookalike.",
   },
   {
     q: "How do credits work?",
@@ -511,8 +512,8 @@ const FAQS = [
     a: "Typically 30–90 seconds from prompt to finished clip. Images land in a few seconds.",
   },
   {
-    q: "Can my team share a library?",
-    a: "The Business library scope is built in — shared brand assets like your product shots, uniforms and jingles live alongside each creator's personal library. Multi-seat teams are coming next.",
+    q: "Can I keep the same character across videos?",
+    a: "Yes — that's what Characters is for. Create one from a selfie or a description and you get a single reference sheet with every angle of them, plus an optional voice. Cast them in Make and the engine keeps their identity consistent from video to video.",
   },
 ];
 
