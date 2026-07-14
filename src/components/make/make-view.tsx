@@ -584,6 +584,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
         body: JSON.stringify({
           brief,
           modality,
+          durationSec, // sizes the Director's beat timeline to the clip length
           purpose: purpose.id === "custom" ? null : `${purpose.label} — ${purpose.tagline}`,
           assets: taggedMedia.length
             ? taggedMedia.map((t) => `${t.tag} = ${t.asset.promptFragment ?? t.asset.name}`)

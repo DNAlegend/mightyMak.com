@@ -32,7 +32,9 @@ type ChatArgs = {
 export async function chatText({ system, user, maxTokens, temperature, jsonSchema }: ChatArgs): Promise<string> {
   if (process.env.ANTHROPIC_API_KEY) {
     const client = new Anthropic();
-    const response = await client.messages.create({
+    // Stream and collect: long plans (up to ~15k output tokens with thinking)
+    // would risk HTTP timeouts on a non-streaming request.
+    const stream = client.messages.stream({
       model: CLAUDE_MODEL,
       // Adaptive thinking shares this budget with the visible answer.
       max_tokens: Math.max(maxTokens + 6000, 8000),
@@ -43,6 +45,7 @@ export async function chatText({ system, user, maxTokens, temperature, jsonSchem
         ? { output_config: { format: { type: "json_schema" as const, schema: jsonSchema } } }
         : {}),
     });
+    const response = await stream.finalMessage();
     if (response.stop_reason === "refusal") throw new Error("The writer declined this brief — rephrase and try again");
     let out = "";
     for (const block of response.content) if (block.type === "text") out += block.text;

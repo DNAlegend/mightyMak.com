@@ -1,7 +1,7 @@
 // The AI model registry. Each entry is data describing a pluggable provider —
 // its modality, capabilities, params and pricing. The UI renders model pickers
-// and cost from this; today every model routes to the same simulated render,
-// and a real BytePlus adapter slots in behind the same shape later.
+// and cost from this; /api/generate maps each entry's arkModel to the real
+// BytePlus engine (Seedance video, Seedream image) and charges by these rates.
 
 import type { Modality } from "./types";
 

@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { chatText, llmConfigured, llmEngine } from "@/lib/llm";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const SYSTEM = `You are a seasoned film director and viral short-form strategist running a video production inside an AI video studio.
 The creator gives you a goal, an idea, or a WHOLE STORY — plus sometimes a target runtime and a cast of characters. Direct it into ONE production: a sequence of shots a cinematic AI video model will generate — one generation per shot, stitched together afterwards into the full video.
@@ -43,14 +43,17 @@ Respond with STRICT JSON only, no markdown fences:
 - clips[].role: the shot's job in the cut, ONE word or two — e.g. "Hook", "Build", "Reveal", "Turn", "Payoff", "CTA".
 - clips[].durationSec: 5, 10 or 15 — your recommendation.
 - clips[].why: one sentence, same language as the goal: why this beat gets this length.
-- clips[].prompt: the shooting script — ALWAYS in English, HYPER-DETAILED, written for EXACTLY that shot's length:
+- clips[].prompt: the shooting script — ALWAYS in English, HYPER-DETAILED, written for EXACTLY that shot's length. Write like a cinematographer's shot card: specific nouns, verbs of motion, nothing vague.
   · A second-by-second timeline ("0-2s: ... 2-5s: ...") in beats of 2–4 seconds whose lengths add up to the full duration — never shorter, never longer.
   · Every beat concrete and visual: one subject with one exact action; setting, props and textures; camera movement AND framing (macro, POV, low-angle dolly-in, whip-pan, orbit, crash-zoom, handheld...); the light source and color of the light; pacing. One strong action per beat — never several vague ones.
+  · Name the optics where they sell the shot: focal feel (wide 24mm distortion, compressed 85mm portrait, macro), depth of field (shallow with creamy bokeh, deep focus), rack focus between subjects, anamorphic flare, lens height.
+  · Stage in depth: put something specific in the foreground, midground and background so the frame has layers, and describe surface detail the camera is close to — skin texture, condensation beads, fabric weave, brushed metal, dust in a light shaft.
+  · Give the physics one clause when motion is the point: cloth swaying, liquid pouring and settling, steam curling, hair in wind, particles drifting — the model simulates these beautifully when named.
   · The first beat re-establishes the previous shot's final image in one clause (skip for shot 1); the last beat lands the freezable final image the next shot will pick up.
-  · The model generates NATIVE AUDIO: after the timeline add one "Audio:" sentence — ambience, foley synced to the action, music energy, and (only when it strengthens the shot) one short spoken line in double quotes with the speaker described.
+  · The model generates NATIVE AUDIO: after the timeline add one "Audio:" sentence — name the music's genre and energy (and when it swells or cuts), 1–2 foley details synced to specific on-screen actions, room tone/ambience, and (only when it strengthens the shot) ONE short spoken line under 12 words in double quotes with the speaker described.
   · End with one sentence of overall mood, style and color grade — identical across shots.
   · NEVER request on-screen text, captions, subtitles, watermarks, logos or UI overlays — the model renders text poorly.
-  · 130–200 words.
+  · 150–220 words.
 Never reference real brand names, logos, trademarked or copyrighted characters, franchises, or real public figures.`;
 
 const PLAN_SCHEMA = {
@@ -141,7 +144,8 @@ export async function POST(req: Request) {
     raw = await chatText({
       system: SYSTEM,
       user: userMsg,
-      maxTokens: Math.min(7500, 800 * expectedShots + 500),
+      // ~350 output tokens per richer 150-220 word script + JSON overhead.
+      maxTokens: Math.min(9000, 900 * expectedShots + 600),
       temperature: 0.9,
       jsonSchema: PLAN_SCHEMA,
     });
@@ -173,7 +177,7 @@ export async function POST(req: Request) {
         role: String(c.role ?? "").slice(0, 24),
         durationSec: snapDuration(c.durationSec),
         why: String(c.why ?? "").slice(0, 300),
-        prompt: String(c.prompt).slice(0, 1700),
+        prompt: String(c.prompt).slice(0, 2000),
       }))
       .slice(0, 16);
   } catch {
