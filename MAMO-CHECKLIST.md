@@ -1,23 +1,20 @@
 # MamoPay go-live checklist
 
-VIBVID launches with **Mamo (Mamo Pay)** as its payment processor. Mamo is a
-UAE payment gateway — **not** a merchant of record — so **Tradio FZE is the
-seller of record** and is responsible for its own invoicing and any applicable
-VAT/tax. Below is everything to do outside the code before real charges work.
+VIBVID launches with **Mamo (Mamo Pay)** as its payment processor. Mamo handles
+card payments and subscriptions; **VIBVID.AI™** is presented as the seller.
+Below is everything to do outside the code before real charges work.
 
-> ⚠️ **Tax note:** With Paddle (the previous setup) tax was collected by the MoR.
-> With Mamo, that responsibility moves to Tradio FZE. Confirm your UAE VAT
-> position (registration + whether prices are tax-inclusive) with your
-> accountant. The site copy now says prices are "exclusive of any applicable
-> taxes" and names Tradio FZE as seller of record.
+> ⚠️ **Tax note:** Mamo is a payment processor, not a merchant of record, so it
+> does not collect tax on your behalf. The site copy states the advertised
+> price is the total charged with no tax added at checkout. Confirm your own
+> VAT/tax position with your accountant.
 
 ## 1. Legal pages — already wired
 
 All legal copy lives in `src/components/legal/legal-page.tsx` (the `COMPANY`
-object) and flows into every page. Legal name `Tradio FZE`, the SRTIP
-address, `support@vibvid.ai`, and **Mamo as payment processor / Tradio FZE as
-seller of record** are already wired through Terms, Privacy, Refunds, Cookies,
-Acceptable Use, and Contact. Just review them against your trade licence.
+object) and flows into every page. The brand `VIBVID.AI™`, `support@vibvid.ai`,
+and **Mamo as payment processor** are wired through Terms, Privacy, Refunds,
+Cookies, Acceptable Use, and Contact. No separate legal entity is named.
 
 ## 2. Point the site at your real domain
 

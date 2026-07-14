@@ -869,8 +869,7 @@ export function Pricing() {
           Plans are billed monthly in US dollars and renew automatically until you cancel — cancel
           anytime from your account. The price you see is the total you pay: no taxes or extra fees
           are added at checkout. Card payments and subscriptions are processed securely by our
-          payment processor, {COMPANY.paymentProcessor}; {COMPANY.legalName} is the seller of record.
-          See our{" "}
+          payment processor, {COMPANY.paymentProcessor}. See our{" "}
           <Link href="/refunds" className="underline hover:text-fg">Refund &amp; Cancellation Policy</Link>{" "}
           and{" "}
           <Link href="/terms" className="underline hover:text-fg">Terms</Link>.
@@ -987,8 +986,7 @@ export function Footer() {
           <div className="max-w-xs">
             <Brand />
             <p className="mt-3 text-[13px] leading-relaxed text-faint">
-              An AI video studio by {COMPANY.legalName}. Plan, cast, shoot and cut — from idea to a
-              finished 1080p video.
+              An AI video studio. Plan, cast, shoot and cut — from idea to a finished 1080p video.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-x-10 gap-y-2 sm:grid-cols-2">
@@ -1011,10 +1009,8 @@ export function Footer() {
         </div>
         <div className="mt-10 border-t border-line pt-6">
           <p className="text-[13px] leading-relaxed text-faint">
-            © 2026 {COMPANY.legalName}. All rights reserved. {COMPANY.brand} is operated by{" "}
-            {COMPANY.legalName}, the seller of record, registered in {COMPANY.jurisdiction}. Card
-            payments and subscriptions are processed securely by our payment processor,{" "}
-            {COMPANY.paymentProcessor}.
+            © 2026 {COMPANY.legalName}. All rights reserved. Card payments and subscriptions are
+            processed securely by our payment processor, {COMPANY.paymentProcessor}.
           </p>
         </div>
       </div>

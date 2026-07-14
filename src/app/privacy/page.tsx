@@ -13,9 +13,9 @@ export default function PrivacyPage() {
       updated="13 July 2026"
       intro={
         <>
-          This Privacy Policy explains how {COMPANY.legalName} (&ldquo;we&rdquo;, &ldquo;us&rdquo;),
-          operator of {COMPANY.brand}, collects, uses and protects your personal data when you use the
-          Service. We are the data controller for the personal data described here.
+          This Privacy Policy explains how {COMPANY.legalName} (&ldquo;we&rdquo;, &ldquo;us&rdquo;)
+          collects, uses and protects your personal data when you use the Service. We are the data
+          controller for the personal data described here.
         </>
       }
     >
@@ -64,11 +64,10 @@ export default function PrivacyPage() {
 
       <Section heading="4. Payments">
         <p>
-          Payments are handled by {COMPANY.paymentProcessor}, our payment processor; {COMPANY.legalName}{" "}
-          is the seller of record. When you check out, you provide your payment details directly to Mamo
-          under Mamo&rsquo;s own privacy policy. We receive confirmation of the transaction and limited
-          billing information (such as country and the last digits of your card) but never your full
-          card number.
+          Payments are handled by {COMPANY.paymentProcessor}, our payment processor. When you check out,
+          you provide your payment details directly to Mamo under Mamo&rsquo;s own privacy policy. We
+          receive confirmation of the transaction and limited billing information (such as country and
+          the last digits of your card) but never your full card number.
         </p>
       </Section>
 
@@ -137,11 +136,11 @@ export default function PrivacyPage() {
       <Section heading="12. Changes and contact">
         <p>
           We may update this Policy from time to time and will change the &ldquo;Last updated&rdquo; date
-          above. For any privacy question or request, contact {COMPANY.legalName} at{" "}
+          above. For any privacy question or request, contact us at{" "}
           <a href={`mailto:${COMPANY.supportEmail}`} className="text-accent-2 underline hover:text-accent">
             {COMPANY.supportEmail}
-          </a>{" "}
-          or {COMPANY.address}.
+          </a>
+          .
         </p>
       </Section>
     </LegalPage>

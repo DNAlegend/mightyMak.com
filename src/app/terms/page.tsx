@@ -14,10 +14,10 @@ export default function TermsPage() {
       intro={
         <>
           These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of {COMPANY.brand}
-          {" "}(the &ldquo;Service&rdquo;), operated by {COMPANY.legalName}, a company registered in{" "}
-          {COMPANY.jurisdiction} (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;). By creating an
-          account, purchasing credits or a subscription, or otherwise using the Service, you agree to
-          these Terms. If you do not agree, do not use the Service.
+          {" "}(the &ldquo;Service&rdquo;), operated by {COMPANY.legalName} (&ldquo;we&rdquo;,
+          &ldquo;us&rdquo;, &ldquo;our&rdquo;). By creating an account, purchasing credits or a
+          subscription, or otherwise using the Service, you agree to these Terms. If you do not agree,
+          do not use the Service.
         </>
       }
     >
@@ -48,12 +48,11 @@ export default function TermsPage() {
           cannot be exchanged, transferred, resold, or redeemed for money.
         </p>
         <p>
-          <strong>Seller of record &amp; payment processing.</strong> {COMPANY.legalName} is the seller
-          of record for all purchases. Card payments and subscriptions are processed securely by our
-          payment processor, {COMPANY.paymentProcessor} (&ldquo;Mamo&rdquo;); Mamo handles the checkout
-          and card processing but is not a party to your purchase. When you buy from us, your contract
-          for both the purchase and the use of the Service is with {COMPANY.legalName} under these Terms.
-          Mamo&rsquo;s terms also apply to the payment transaction itself.
+          <strong>Payment processing.</strong> Card payments and subscriptions are processed securely
+          by our payment processor, {COMPANY.paymentProcessor} (&ldquo;Mamo&rdquo;); Mamo handles the
+          checkout and card processing but is not a party to your purchase. When you buy from us, your
+          contract for both the purchase and the use of the Service is with {COMPANY.legalName} under
+          these Terms. Mamo&rsquo;s terms also apply to the payment transaction itself.
         </p>
         <p>
           Subscriptions renew automatically each billing period at the then-current price until you
@@ -161,7 +160,7 @@ export default function TermsPage() {
 
       <Section heading="13. Contact">
         <p>
-          {COMPANY.legalName} — {COMPANY.address}. Questions about these Terms? Email{" "}
+          {COMPANY.legalName}. Questions about these Terms? Email{" "}
           <a href={`mailto:${COMPANY.supportEmail}`} className="text-accent-2 underline hover:text-accent">
             {COMPANY.supportEmail}
           </a>

@@ -9,22 +9,18 @@ import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { LogoWordmark } from "@/components/logo";
 
-/** The registered business behind VIBVID — the merchant of record's customer. */
+/** The business behind VIBVID — presented under the brand, no separate entity named. */
 export const COMPANY = {
   brand: "VIBVID.AI",
-  /** Legal entity that holds the merchant account (SRTIP trade licence 11311). */
-  legalName: "Tradio FZE",
-  licenseNo: "11311",
-  /** Sharjah Research Technology & Innovation Park free zone. */
-  jurisdiction: "Sharjah, United Arab Emirates",
-  /** Registered address on the SRTIP trade licence. */
-  address: "Block B, B56-179, Sharjah Research Technology & Innovation Park (SRTIP), Sharjah, United Arab Emirates",
+  /** Public-facing name used across all legal copy. */
+  legalName: "VIBVID.AI™",
+  /** Governing-law jurisdiction (used for Terms; not an entity registration). */
+  jurisdiction: "the United Arab Emirates",
   supportEmail: "support@vibvid.ai",
   salesEmail: "sales@vibvid.ai",
   /**
-   * Mamo is our payment processor (not a merchant of record): it securely
-   * handles card payments and subscriptions, while Tradio FZE remains the
-   * seller of record for all VIBVID transactions.
+   * Mamo is our payment processor: it securely handles card payments and
+   * subscriptions. VIBVID.AI™ is the seller for all transactions.
    */
   paymentProcessor: "Mamo (Mamopay Limited)",
   paymentProcessorSite: "https://www.mamopay.com",
@@ -86,9 +82,8 @@ export function LegalPage({
             ))}
           </nav>
           <p className="mt-6 text-[13px] text-faint">
-            {COMPANY.brand} is operated by {COMPANY.legalName}, the seller of record, registered in{" "}
-            {COMPANY.jurisdiction}. Card payments and subscriptions are processed securely by our
-            payment processor, {COMPANY.paymentProcessor}.
+            Card payments and subscriptions are processed securely by our payment processor,{" "}
+            {COMPANY.paymentProcessor}.
           </p>
           <p className="mt-2 text-[13px] text-faint">© 2026 {COMPANY.legalName}. All rights reserved.</p>
         </div>

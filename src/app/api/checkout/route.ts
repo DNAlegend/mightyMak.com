@@ -2,7 +2,7 @@
 // Records a pending purchase (server-priced from the billing catalog — never
 // trusts the client's amount), then creates a hosted Mamo payment link and
 // hands the browser its checkout URL to redirect to. Mamo is our payment
-// processor; Tradio FZE is the seller of record. We never touch card data.
+// processor; VIBVID.AI is the seller. We never touch card data.
 //
 // Two ways in: a signed-in caller (Authorization header), or a guest with just
 // an email — we create their account server-side so they can pay first and

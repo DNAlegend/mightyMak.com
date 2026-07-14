@@ -13,9 +13,9 @@ export default function CookiesPage() {
       updated="13 July 2026"
       intro={
         <>
-          This Cookie Policy explains how {COMPANY.legalName} (&ldquo;we&rdquo;, &ldquo;us&rdquo;),
-          operator of {COMPANY.brand}, uses cookies and similar local storage technologies when you
-          use the Service. It should be read together with our{" "}
+          This Cookie Policy explains how {COMPANY.legalName} (&ldquo;we&rdquo;, &ldquo;us&rdquo;)
+          uses cookies and similar local storage technologies when you use the Service. It should be
+          read together with our{" "}
           <a href="/privacy" className="text-accent-2 underline hover:text-accent">Privacy Policy</a>.
         </>
       }

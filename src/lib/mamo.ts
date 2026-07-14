@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import type { BillingItem } from "@/lib/billing";
 
 // Mamo (Mamo Pay) — our payment processor. Unlike a merchant of record, Mamo
-// only moves the money: Tradio FZE remains the seller of record. We create a
+// only moves the money: VIBVID.AI remains the seller. We create a
 // hosted payment link on the server (so a browser can never swap in a cheaper
 // amount), redirect the buyer to Mamo's hosted checkout, and grant credits from
 // the webhook once Mamo reports the charge "captured".
