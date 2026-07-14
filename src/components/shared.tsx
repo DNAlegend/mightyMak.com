@@ -172,8 +172,12 @@ export function classifyGenError(raw?: string): {
     return {
       kind: "timeout",
       title: "This took too long",
-      detail: "The render timed out. Your credits weren’t spent — give it another try.",
-      tips: ["Try again — timeouts are usually transient.", "Shorter clips and 720p render faster."],
+      detail:
+        "The render is taking unusually long. It may still finish and land in My Videos — check back in a few minutes before re-spending.",
+      tips: [
+        "Reload the page — if the render finished in the background, it will appear in My Videos.",
+        "Shorter clips and 720p render faster.",
+      ],
     };
   }
   if (/not enough credits|insufficient|402/.test(low)) {
@@ -188,7 +192,7 @@ export function classifyGenError(raw?: string): {
   return {
     kind: "generic",
     title: "That render didn’t finish",
-    detail: msg || "Something went wrong — your credits weren’t spent. Try again.",
+    detail: msg || "Something went wrong — your credits were refunded. Try again.",
     tips: ["Try again — most one-off failures don’t repeat.", "If it keeps failing, simplify the prompt."],
   };
 }

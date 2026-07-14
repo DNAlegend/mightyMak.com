@@ -167,7 +167,22 @@ function startSimulatedRender(set: StoreSet, get: () => StoreState, job: VideoJo
  * Poll /api/generate?id=… until a real render lands (or fails). Also used to
  * resume watching an in-flight render after a page reload.
  */
+// One live poller per job id. hydrateFromCloud can run several times in quick
+// succession (e.g. the post-checkout return polls it 5×), and without this
+// each pass would spawn another loop over the same render.
+const activePolls = new Set<string>();
+
 async function pollRenderUntilDone(set: StoreSet, job: Pick<VideoJob, "id" | "posterUrl">) {
+  if (activePolls.has(job.id)) return;
+  activePolls.add(job.id);
+  try {
+    await pollRenderLoop(set, job);
+  } finally {
+    activePolls.delete(job.id);
+  }
+}
+
+async function pollRenderLoop(set: StoreSet, job: Pick<VideoJob, "id" | "posterUrl">) {
   const token = (await supabase!.auth.getSession()).data.session?.access_token;
   if (!token) return;
   let progress = 8;
@@ -379,6 +394,8 @@ export const useStore = create<StoreState>()(
         setCloudUser(null);
         timers.forEach((t) => clearInterval(t));
         timers.clear();
+        // Let a next sign-in (possibly the same account) start fresh pollers.
+        activePolls.clear();
         set({
           cloudUser: null,
           credits: STARTING_CREDITS,

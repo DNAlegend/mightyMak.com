@@ -31,10 +31,10 @@ export interface BillingItem {
  * Packs expire after 12 months.
  */
 export const TOPUPS: BillingItem[] = [
-  { id: "topup-200", label: "Starter", kind: "topup", credits: 200, amount: 15, currency: "USD", priceLabel: "$15", aedLabel: "AED 55", sublabel: "≈ 2 Full-HD videos", expiresMonths: 12 },
-  { id: "topup-600", label: "Popular", kind: "topup", credits: 600, amount: 39, currency: "USD", priceLabel: "$39", aedLabel: "AED 143", sublabel: "≈ 6 Full-HD videos", popular: true, expiresMonths: 12 },
-  { id: "topup-1500", label: "Value", kind: "topup", credits: 1500, amount: 89, currency: "USD", priceLabel: "$89", aedLabel: "AED 327", sublabel: "≈ 16 Full-HD videos", expiresMonths: 12 },
-  { id: "topup-5000", label: "Bulk", kind: "topup", credits: 5000, amount: 249, currency: "USD", priceLabel: "$249", aedLabel: "AED 915", sublabel: "≈ 55 Full-HD videos", expiresMonths: 12 },
+  { id: "topup-200", label: "Starter", kind: "topup", credits: 200, amount: 15, currency: "USD", priceLabel: "$15", aedLabel: "AED 55", sublabel: "≈ 2 Full-HD clips (5s each)", expiresMonths: 12 },
+  { id: "topup-600", label: "Popular", kind: "topup", credits: 600, amount: 39, currency: "USD", priceLabel: "$39", aedLabel: "AED 143", sublabel: "≈ 6 Full-HD clips (5s each)", popular: true, expiresMonths: 12 },
+  { id: "topup-1500", label: "Value", kind: "topup", credits: 1500, amount: 89, currency: "USD", priceLabel: "$89", aedLabel: "AED 327", sublabel: "≈ 16 Full-HD clips (5s each)", expiresMonths: 12 },
+  { id: "topup-5000", label: "Bulk", kind: "topup", credits: 5000, amount: 249, currency: "USD", priceLabel: "$249", aedLabel: "AED 915", sublabel: "≈ 55 Full-HD clips (5s each)", expiresMonths: 12 },
 ];
 
 /**
@@ -45,9 +45,9 @@ export const TOPUPS: BillingItem[] = [
  * generation cost is variable, so every plan is a fixed credit budget.
  */
 export const PLAN_ITEMS: BillingItem[] = [
-  { id: "plan-creator", label: "Creator", kind: "subscription", credits: 300, amount: 19, currency: "USD", priceLabel: "$19", aedLabel: "AED 69", sublabel: "≈ 3 Full-HD videos or 6 in HD / mo" },
-  { id: "plan-pro", label: "Pro", kind: "subscription", credits: 1000, amount: 49, currency: "USD", priceLabel: "$49", aedLabel: "AED 179", sublabel: "≈ 11 Full-HD or 22 HD videos / mo", popular: true },
-  { id: "plan-agency", label: "Agency", kind: "subscription", credits: 3000, amount: 129, currency: "USD", priceLabel: "$129", aedLabel: "AED 475", sublabel: "≈ 33 Full-HD or 66 HD videos / mo" },
+  { id: "plan-creator", label: "Creator", kind: "subscription", credits: 300, amount: 19, currency: "USD", priceLabel: "$19", aedLabel: "AED 69", sublabel: "≈ 3 Full-HD clips (5s each) or 6 in HD / mo" },
+  { id: "plan-pro", label: "Pro", kind: "subscription", credits: 1000, amount: 49, currency: "USD", priceLabel: "$49", aedLabel: "AED 179", sublabel: "≈ 11 Full-HD clips (5s each) or 22 HD / mo", popular: true },
+  { id: "plan-agency", label: "Agency", kind: "subscription", credits: 3000, amount: 129, currency: "USD", priceLabel: "$129", aedLabel: "AED 475", sublabel: "≈ 33 Full-HD clips (5s each) or 66 HD / mo" },
 ];
 
 export const BILLING_ITEMS: BillingItem[] = [...TOPUPS, ...PLAN_ITEMS];

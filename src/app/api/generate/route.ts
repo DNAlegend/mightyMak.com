@@ -279,14 +279,32 @@ export async function GET(req: Request) {
     if (!download.ok) return NextResponse.json({ status: "rendering" });
     const publicUrl = await storeFile(sb, user.id, `gen-${id}.mp4`, await download.arrayBuffer(), "video/mp4");
     if (!publicUrl) return NextResponse.json({ status: "rendering" });
-    await sb.from("generations").update({ status: "succeeded", progress: 100, video_url: publicUrl }).eq("id", id);
+    // Guarded on status so a concurrent poller can't finalize the row twice.
+    await sb
+      .from("generations")
+      .update({ status: "succeeded", progress: 100, video_url: publicUrl })
+      .eq("id", id)
+      .eq("status", "rendering");
     return NextResponse.json({ status: "succeeded", videoUrl: publicUrl, posterUrl: row.poster_url });
   }
 
   if (task.status === "failed" || task.status === "cancelled") {
     const message = JSON.stringify(task.error ?? task.status).slice(0, 300);
-    await sb.from("generations").update({ status: "failed", progress: 100, error: message }).eq("id", id);
-    await refund(sb, row.credits_cost ?? 0);
+    // Concurrent pollers are normal (multiple tabs, post-checkout rehydrates).
+    // The status filter makes this finalize atomic: only the request that
+    // actually flips rendering→failed performs the refund, so a failed render
+    // credits back exactly once no matter how many pollers observe it.
+    // (Residual: flip and refund are two statements — a serverless kill between
+    // them loses the refund. Folding both into one RPC is the eventual fix.)
+    const { data: flipped } = await sb
+      .from("generations")
+      .update({ status: "failed", progress: 100, error: message })
+      .eq("id", id)
+      .eq("status", "rendering")
+      .select("id");
+    if (flipped && flipped.length > 0) {
+      await refund(sb, row.credits_cost ?? 0);
+    }
     const { data: balance } = await sb.rpc("adjust_credits", { delta: 0 });
     return NextResponse.json({ status: "failed", error: message, credits: balance ?? undefined });
   }

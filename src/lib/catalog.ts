@@ -136,6 +136,18 @@ export interface Composable {
  * <scene>. Soundtrack: <audio>."
  */
 export function composeFromAssets(picked: Composable[], direction?: string): string {
+  // Don't repeat what the direction already says: after "Improve prompt" the
+  // Director usually weaves the cast description into the script verbatim, and
+  // re-prepending it produced doubled openings ("Kato, a chef… Kato, a chef…").
+  // Only skip the scaffold when EVERY picked fragment is already in the
+  // direction — dropping fragments one by one would detach dependents (a dress
+  // with its character filtered out would hang off "the subject").
+  const normDir = (direction ?? "").toLowerCase().replace(/\s+/g, " ");
+  const contained = (a: Composable) =>
+    !!a.promptFragment &&
+    normDir.includes(a.promptFragment.trim().toLowerCase().replace(/\s+/g, " "));
+  const allContained = picked.length > 0 && picked.every(contained);
+
   const frag = (a: Composable) => a.promptFragment;
   const join = (arr: Composable[]) => arr.map(frag).filter(Boolean).join(" and ");
   const ofClass = (c: AssetClass) => picked.filter((a) => a.class === c && a.promptFragment);
@@ -148,6 +160,8 @@ export function composeFromAssets(picked: Composable[], direction?: string): str
   const audios = ofClass("audio");
 
   if (picked.length === 0) return direction?.trim() ?? "";
+  // Everything picked is already described in the direction — use it as-is.
+  if (allContained) return direction?.trim() ?? "";
 
   const subject = characters.length
     ? join(characters)

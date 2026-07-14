@@ -260,6 +260,22 @@ export function MakeView({ mode }: { mode?: Modality }) {
     setResolution(getModel(modelId).arkResolution ?? "720p");
   }, [modelId]);
 
+  // Draft-first for small balances: the purpose presets default to Production
+  // (~90cr for 5s), which a free account (20cr) can never afford — their first
+  // click would be a disabled button. Once the balance is known, if it can't
+  // cover a single 5s render on the preset model, start them on Draft instead.
+  // Runs once per mount and never overrides a choice the user made themselves.
+  const autoDrafted = useRef(false);
+  useEffect(() => {
+    if (!hydrated || autoDrafted.current || modality !== "video") return;
+    autoDrafted.current = true;
+    const preset = getModel(modelId);
+    const presetCost = priceFor(preset, { durationSec: 5 });
+    if (credits < presetCost && preset.id !== "seedance-2-mini") {
+      setModelId("seedance-2-mini");
+    }
+  }, [hydrated, credits, modality, modelId]);
+
   // Consume drafts handed over from Assets ("Use in Make") or Library ("Remix").
   useEffect(() => {
     const ids = [
@@ -1035,8 +1051,10 @@ export function MakeView({ mode }: { mode?: Modality }) {
                 </button>
               ))}
             </div>
-            {/* Quality is part of the price — the rate is on each chip */}
-            <div className="flex items-center gap-1.5">
+            {/* Quality is part of the price — the rate is on each chip.
+                flex-wrap: with 4 resolutions (Production) this row is wider than
+                a phone screen, and without wrapping the 4K chip gets clipped. */}
+            <div className="flex flex-wrap items-center gap-1.5">
               <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-faint">Quality</span>
               {(model.resolutions ?? [model.arkResolution ?? "720p"]).map((r) => (
                 <button
