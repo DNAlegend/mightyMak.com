@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { Button, Modal, Badge, TextInput } from "@/components/ui";
 import { AuthModal } from "@/components/auth/auth-modal";
 import { Turnstile, captchaEnabled } from "@/components/auth/turnstile";
+import { CheckoutPanel } from "@/components/checkout/checkout-panel";
+import { AccountModal } from "@/components/account/account-modal";
 import { LogoWordmark } from "@/components/logo";
 
 // The nav splits into the production pipeline and the library of what you own.
@@ -104,15 +106,16 @@ function CreditWidget({ onBuy }: { onBuy: () => void }) {
 const CHECKOUT_EMAIL_KEY = "vibvid-checkout-email";
 
 /**
- * Ask the server to start a Stripe checkout. Pass a `token` for a signed-in
- * buyer, or an `email` for a guest (their account is created server-side).
- * Returns the hosted checkout URL to redirect to, or null when payments aren't
- * configured on the server (501), in which case callers fall back to demo credits.
+ * Ask the server to start an on-site Stripe checkout. Pass a `token` for a
+ * signed-in buyer, or an `email` for a guest (their account is created
+ * server-side). Returns the Embedded Checkout client secret to mount in-page,
+ * or null when payments aren't configured on the server (501), in which case
+ * callers fall back to demo credits.
  */
 async function requestCheckout(
   item: BillingItem,
   auth: { token?: string; email?: string },
-): Promise<{ checkoutUrl: string } | null> {
+): Promise<{ clientSecret: string } | null> {
   const res = await fetch("/api/checkout", {
     method: "POST",
     headers: {
@@ -131,8 +134,8 @@ async function requestCheckout(
     throw new Error(d.error ?? "Checkout failed");
   }
   const data = await res.json();
-  if (data.provider === "stripe" && typeof data.checkoutUrl === "string") {
-    return { checkoutUrl: data.checkoutUrl };
+  if (data.provider === "stripe" && typeof data.clientSecret === "string") {
+    return { clientSecret: data.clientSecret };
   }
   return null;
 }
@@ -152,6 +155,8 @@ function BuyCreditsModal({
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [cycle, setCycle] = useState<"month" | "year">("month");
+  // Set once a checkout starts: the Embedded Checkout form renders in-page.
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const autostarted = useRef<string | null>(null);
 
   useEffect(() => {
@@ -159,12 +164,13 @@ function BuyCreditsModal({
     setError(null);
     setSelected(autostart?.id ?? null);
     setCycle(autostart?.interval === "year" ? "year" : "month");
+    setClientSecret(null);
   }, [open, autostart]);
 
-  // Start a Stripe checkout by redirecting to the hosted payment page. Only
-  // signed-in users reach this modal (the paywall gate handles guests). The
-  // demo grant exists ONLY for local no-cloud setups — a real account never
-  // gets free credits, even if Stripe is temporarily unconfigured.
+  // Start an on-site Stripe checkout: fetch a client secret and mount Stripe's
+  // embedded form here. Only signed-in users reach this modal (the paywall gate
+  // handles guests). The demo grant exists ONLY for local no-cloud setups — a
+  // real account never gets free credits, even if Stripe is unconfigured.
   async function buy(item: BillingItem) {
     if (busy) return;
     setSelected(item.id);
@@ -179,8 +185,7 @@ function BuyCreditsModal({
       if (token) {
         const start = await requestCheckout(item, { token });
         if (start) {
-          // Leave the app for Stripe's hosted checkout; the webhook grants credits.
-          window.location.href = start.checkoutUrl;
+          setClientSecret(start.clientSecret);
           return;
         }
         // null → payments not configured on the server (501).
@@ -205,6 +210,14 @@ function BuyCreditsModal({
     void buy(autostart);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, autostart]);
+
+  if (clientSecret) {
+    return (
+      <Modal open={open} onClose={onClose} title="Checkout" size="lg">
+        <CheckoutPanel clientSecret={clientSecret} onBack={() => setClientSecret(null)} />
+      </Modal>
+    );
+  }
 
   return (
     <Modal open={open} onClose={onClose} title="Get more credits" size="lg">
@@ -328,6 +341,8 @@ function PaywallGate({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resent, setResent] = useState(false);
+  // Set once checkout starts: Stripe's embedded form renders in-page.
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
   // Billing cycle for the plan picker — annual is 8× the monthly price ("4 months on us").
   const [cycle, setCycle] = useState<"month" | "year">(planPreselect?.interval === "year" ? "year" : "month");
   // The 6-digit code typed on the confirm step.
@@ -383,13 +398,14 @@ function PaywallGate({
         setError("Payments aren’t configured on this server yet — try again later.");
         return;
       }
-      // Remember who's paying so the return handler can confirm their account.
+      // Remember who's paying so the return handler (?purchase=success) can send
+      // the account-confirmation code after Stripe returns them to the app.
       localStorage.setItem(CHECKOUT_EMAIL_KEY, email.trim().toLowerCase());
-      // Redirect to Stripe's hosted checkout; on return (?purchase=success) the
-      // AppShell reads this email and sends the account-confirmation link.
-      window.location.href = start.checkoutUrl;
+      // Mount Stripe's embedded form in-page — no redirect off vibvid.ai.
+      setClientSecret(start.clientSecret);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Checkout failed");
+    } finally {
       setBusy(false);
     }
   }
@@ -442,6 +458,21 @@ function PaywallGate({
     } finally {
       setVerifying(false);
     }
+  }
+
+  // Payment step: Stripe's embedded form, in-page. On completion Stripe returns
+  // the buyer to /app?purchase=success and the confirm-code screen takes over.
+  if (clientSecret) {
+    return (
+      <div className="flex min-h-screen items-start justify-center px-4 py-10">
+        <div className="w-full max-w-lg">
+          <div className="mb-5 flex justify-center">
+            <LogoWordmark className="text-2xl" />
+          </div>
+          <CheckoutPanel clientSecret={clientSecret} onBack={() => setClientSecret(null)} />
+        </div>
+      </div>
+    );
   }
 
   if (confirmingEmail) {
@@ -677,6 +708,7 @@ function PaywallGate({
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [buyOpen, setBuyOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const authOpen = useStore((s) => s.authOpen);
   const setAuthOpen = useStore((s) => s.setAuthOpen);
   const [email, setEmail] = useState<string | null>(null);
@@ -883,6 +915,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => setAccountOpen(true)}
+                      title="Account & billing"
+                      className="gap-1.5"
+                    >
+                      <UserCircle size={15} />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => supabase?.auth.signOut()}
                       title="Sign out"
                       className="gap-1.5"
@@ -916,6 +957,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         }}
       />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <AccountModal open={accountOpen} onClose={() => setAccountOpen(false)} />
 
       {purchaseNote && (
         <div className="animate-rise fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium text-fg shadow-[0_16px_40px_-16px_rgba(16,18,27,0.4)]">

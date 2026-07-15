@@ -24,13 +24,15 @@ Stripe dashboard — nothing to keep in sync.
 ## 2. Environment variables (Vercel → Settings → Environment Variables)
 
 ```
-STRIPE_SECRET_KEY=sk_live_…      # Dashboard → Developers → API keys
-STRIPE_WEBHOOK_SECRET=whsec_…    # from step 3
+STRIPE_SECRET_KEY=sk_live_…              # Dashboard → Developers → API keys
+STRIPE_WEBHOOK_SECRET=whsec_…            # from step 3
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_…  # Developers → API keys (public — safe to expose)
 ```
 
-Set both for **Production** (and Preview if you want to test with `sk_test_…`
-keys there). Until `STRIPE_SECRET_KEY` is set, `/api/checkout` returns 501 and
-the site behaves as before (no checkout).
+Set all three for **Production** (and Preview if you want to test with test-mode
+keys there). The **publishable key is required** for the in-page (embedded)
+checkout and the account page's card update to render. Until `STRIPE_SECRET_KEY`
+is set, `/api/checkout` returns 501 and the site behaves as before (no checkout).
 
 ## 3. Register the webhook (Stripe dashboard)
 
@@ -59,6 +61,9 @@ Credits are granted idempotently per Stripe charge/invoice id via the existing
    call `adjust_credits` with a positive delta or update their own
    `profiles.credits` row directly — a free-credits hole). Grants now flow only
    through the Stripe webhook and server-side refunds.
+4. `supabase/migrations/20260716120000_billing_customers.sql` — stores each
+   user's Stripe customer id so the on-site account page can list invoices,
+   switch plan, cancel, and update the card.
 
 ## 5. Test end-to-end (test mode)
 
@@ -73,13 +78,22 @@ card `4242 4242 4242 4242`:
 4. Swap in live keys + live webhook, make one real $15 top-up, refund it from
    the Stripe dashboard.
 
-## 6. After launch (recommended)
+## 6. Account management is now on-site
 
-- Enable the **Customer Portal** (Settings → Billing → Customer portal) so
-  subscribers can cancel/update cards themselves; we can add a "Manage
-  billing" button in the app next.
+Customers manage everything inside vibvid.ai (the person icon in the app
+topbar → "Account & billing"): see their plan, credit balance, and invoices,
+**cancel** (or resume) their plan, **switch** tier or monthly↔annual, and
+**update their card** — all without leaving the site. You do **not** need
+Stripe's hosted Customer Portal.
+
+## 7. After launch (recommended)
+
 - Set your **statement descriptor** (Settings → Public details) — cardholders
   will see the TAXNOW FZE account's descriptor; make it say VIBVID so
   chargebacks stay low.
 - Turn on **Stripe Radar** default rules (on by default) and email receipts
   (Settings → Emails → send receipts to customers).
+- **Do not enable Stripe Tax or coupons** without telling me first. Prices are
+  verified against the exact catalog amount, so adding tax/discounts at
+  checkout would make the amounts differ and credits would stop being granted.
+  If you want tax or promos later, I'll adjust the verification to match.
