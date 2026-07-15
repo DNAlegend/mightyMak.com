@@ -9,10 +9,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   Coins,
+  DollarSign,
   Film,
   Loader2,
   RefreshCw,
   ShieldAlert,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -59,7 +61,32 @@ interface Stats {
     status: string;
     at: string;
   }[];
+  revenue: {
+    mrr: number;
+    arr: number;
+    activeSubscribers: number;
+    pastDue: number;
+    scheduledCancels: number;
+    canceled30d: number;
+    churnRate: number;
+    truncated: boolean;
+    subscribers: {
+      email: string;
+      label: string;
+      interval: "month" | "year" | null;
+      mrr: number;
+      status: string;
+      cancelAtPeriodEnd: boolean;
+      renews: string | null;
+      startedAt: string | null;
+      generations: number;
+      lastActive: string | null;
+    }[];
+  } | null;
 }
+
+const usd = (n: number) =>
+  n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: n % 1 === 0 ? 0 : 2 });
 
 function ago(iso: string | null): string {
   if (!iso) return "—";
@@ -169,7 +196,7 @@ export function AdminDashboard() {
     );
   }
 
-  const { totals, days, users, recent, purchases } = stats;
+  const { totals, days, users, recent, purchases, revenue } = stats;
   const maxDay = Math.max(1, ...days.map((d) => d.count));
 
   return (
@@ -183,6 +210,34 @@ export function AdminDashboard() {
           <RefreshCw size={14} /> Refresh
         </Button>
       </header>
+
+      {/* Revenue */}
+      {revenue && (
+        <>
+          <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-faint">
+            <DollarSign size={13} className="text-teal" /> Revenue
+          </div>
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <StatTile label="MRR" value={usd(revenue.mrr)} sub="monthly recurring" />
+            <StatTile label="ARR" value={usd(revenue.arr)} sub="annual run-rate" />
+            <StatTile
+              label="Active subscribers"
+              value={revenue.activeSubscribers}
+              sub={revenue.pastDue > 0 ? `${revenue.pastDue} past due` : undefined}
+            />
+            <StatTile
+              label="Churn (30d)"
+              value={`${(revenue.churnRate * 100).toFixed(1)}%`}
+              sub={`${revenue.canceled30d} canceled`}
+            />
+            <StatTile
+              label="Scheduled cancels"
+              value={revenue.scheduledCancels}
+              sub={revenue.scheduledCancels > 0 ? "cancel at period end" : "none pending"}
+            />
+          </div>
+        </>
+      )}
 
       {/* Topline */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -220,6 +275,63 @@ export function AdminDashboard() {
           ))}
         </div>
       </Card>
+
+      {/* Subscribers — paying customers + their activity */}
+      {revenue && (
+        <Card className="mt-4 overflow-hidden">
+          <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+            <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-faint">
+              <TrendingUp size={13} className="text-teal" /> Subscribers ({revenue.subscribers.length})
+            </div>
+            {revenue.truncated && <span className="text-[11px] text-faint">showing first 100</span>}
+          </div>
+          {revenue.subscribers.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-muted">No active subscribers yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-faint">
+                    <th className="px-4 py-2 font-semibold">Email</th>
+                    <th className="px-3 py-2 font-semibold">Plan</th>
+                    <th className="px-3 py-2 text-right font-semibold">MRR</th>
+                    <th className="px-3 py-2 font-semibold">Status</th>
+                    <th className="px-3 py-2 text-right font-semibold">Gens</th>
+                    <th className="px-3 py-2 font-semibold">Last active</th>
+                    <th className="px-3 py-2 font-semibold">Renews</th>
+                    <th className="px-4 py-2 font-semibold">Since</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {revenue.subscribers.map((s, i) => (
+                    <tr key={i} className="border-b border-line/60 last:border-0 hover:bg-surface-2/50">
+                      <td className="max-w-[200px] truncate px-4 py-2.5 font-medium text-fg">{s.email}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-muted">
+                        {s.label}
+                        <span className="text-faint"> · {s.interval === "year" ? "annual" : "monthly"}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{usd(s.mrr)}</td>
+                      <td className="px-3 py-2.5">
+                        <Badge tone={s.cancelAtPeriodEnd ? "neutral" : s.status === "active" ? "teal" : "accent"}>
+                          {s.cancelAtPeriodEnd ? "canceling" : s.status}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-muted">{s.generations}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-muted">{ago(s.lastActive)}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-muted">
+                        {s.renews ? new Date(s.renews).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap text-muted">
+                        {s.startedAt ? new Date(s.startedAt).toLocaleDateString() : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Users */}
       <Card className="mt-4 overflow-hidden">
@@ -303,7 +415,7 @@ export function AdminDashboard() {
           <Coins size={13} className="text-accent-2" /> Purchases ({totals.paidPurchases} paid)
         </div>
         {purchases.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-muted">No purchases yet — payments are paused.</p>
+          <p className="px-4 py-6 text-sm text-muted">No purchases yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]">

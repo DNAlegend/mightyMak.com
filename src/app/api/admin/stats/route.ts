@@ -7,6 +7,7 @@
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { stripeConfigured, getRevenueMetrics } from "@/lib/stripe";
 
 export const maxDuration = 30;
 
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
   }
 
   // 3. Gather. Early-stage scale: pull capped raw rows and aggregate here.
-  const [usersRes, profilesRes, gensRes, assetsRes, plansRes, purchasesRes] = await Promise.all([
+  const [usersRes, profilesRes, gensRes, assetsRes, plansRes, purchasesRes, custRes] = await Promise.all([
     supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 500 }),
     supabaseAdmin.from("profiles").select("id, credits").limit(1000),
     supabaseAdmin
@@ -51,6 +52,7 @@ export async function GET(req: Request) {
       .select("user_id, kind, item, credits, amount, currency, status, created_at")
       .order("created_at", { ascending: false })
       .limit(200),
+    supabaseAdmin.from("billing_customers").select("user_id, stripe_customer_id").limit(1000),
   ]);
 
   const users = usersRes.data?.users ?? [];
@@ -59,6 +61,7 @@ export async function GET(req: Request) {
   const assets = assetsRes.data ?? [];
   const plans = plansRes.data ?? [];
   const purchases = purchasesRes.data ?? [];
+  const userOfCustomer = new Map((custRes.data ?? []).map((r) => [r.stripe_customer_id, r.user_id]));
 
   const emailOf = new Map(users.map((u) => [u.id, u.email ?? "(no email)"]));
   const now = Date.now();
@@ -156,5 +159,43 @@ export async function GET(req: Request) {
     at: iso(p.created_at),
   }));
 
-  return NextResponse.json({ totals, days, users: userRows, recent, purchases: recentPurchases });
+  // Revenue metrics + paying-customer activity, live from Stripe (best-effort:
+  // the rest of the dashboard still renders if Stripe is down or unconfigured).
+  let revenue: unknown = null;
+  if (stripeConfigured()) {
+    try {
+      const m = await getRevenueMetrics();
+      const subscribers = m.subscribers.map((sub) => {
+        const uid = userOfCustomer.get(sub.customerId) ?? null;
+        const agg = uid ? byUser.get(uid) : undefined;
+        return {
+          email: uid ? emailOf.get(uid) ?? "(unknown)" : "(unlinked customer)",
+          label: sub.label,
+          interval: sub.interval,
+          mrr: sub.mrrCents / 100,
+          status: sub.status,
+          cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+          renews: sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd * 1000).toISOString() : null,
+          startedAt: sub.startedAt ? new Date(sub.startedAt * 1000).toISOString() : null,
+          generations: agg?.gens ?? 0,
+          lastActive: agg?.lastActive ? new Date(agg.lastActive).toISOString() : null,
+        };
+      });
+      revenue = {
+        mrr: m.mrrCents / 100,
+        arr: m.arrCents / 100,
+        activeSubscribers: m.activeSubscribers,
+        pastDue: m.pastDue,
+        scheduledCancels: m.scheduledCancels,
+        canceled30d: m.canceled30d,
+        churnRate: m.churnRate,
+        truncated: m.truncated,
+        subscribers,
+      };
+    } catch (e) {
+      console.error("[admin/stats] revenue metrics failed:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  return NextResponse.json({ totals, days, users: userRows, recent, purchases: recentPurchases, revenue });
 }

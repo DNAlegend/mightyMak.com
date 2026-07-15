@@ -163,6 +163,99 @@ export async function invoiceSubscriptionInfo(
   return { subscriptionId: subId, metadata: {} };
 }
 
+// -------------------------------------------------------------- metrics ---
+// Revenue metrics for the owner dashboard, computed live from Stripe.
+
+export interface Subscriber {
+  customerId: string;
+  itemId: string | null;
+  label: string;
+  interval: "month" | "year" | null;
+  mrrCents: number;
+  status: string;
+  startedAt: number | null;
+  currentPeriodEnd: number | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+export interface RevenueMetrics {
+  mrrCents: number;
+  arrCents: number;
+  activeSubscribers: number;
+  pastDue: number;
+  scheduledCancels: number;
+  canceled30d: number;
+  churnRate: number; // 0..1, trailing 30-day
+  subscribers: Subscriber[];
+  truncated: boolean; // true if we hit the page cap (>100 of a status)
+}
+
+/** Normalize one subscription to monthly recurring cents. */
+function subMrrCents(sub: Stripe.Subscription): { cents: number; interval: "month" | "year" | null; itemId: string | null; label: string } {
+  const item = sub.items.data[0];
+  const price = item?.price;
+  const unit = price?.unit_amount ?? 0;
+  const count = price?.recurring?.interval_count ?? 1;
+  const interval = (price?.recurring?.interval as "month" | "year" | undefined) ?? null;
+  const perMonth = interval === "year" ? unit / (12 * count) : interval === "month" ? unit / count : 0;
+  const itemId = sub.metadata?.item_id ?? null;
+  const catalog = itemId ? billingItem(itemId) : null;
+  return { cents: Math.round(perMonth), interval, itemId, label: catalog?.label ?? "Subscription" };
+}
+
+export async function getRevenueMetrics(): Promise<RevenueMetrics> {
+  const s = stripe();
+  const CAP = 100;
+  const [active, pastDue, canceled] = await Promise.all([
+    s.subscriptions.list({ status: "active", limit: CAP }),
+    s.subscriptions.list({ status: "past_due", limit: CAP }),
+    s.subscriptions.list({ status: "canceled", limit: CAP }),
+  ]);
+
+  const paying = [...active.data, ...pastDue.data];
+  let mrrCents = 0;
+  let scheduledCancels = 0;
+  const subscribers: Subscriber[] = paying.map((sub) => {
+    const { cents, interval, itemId, label } = subMrrCents(sub);
+    mrrCents += cents;
+    if (sub.cancel_at_period_end) scheduledCancels += 1;
+    const item = sub.items.data[0] as unknown as { current_period_end?: number } | undefined;
+    const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? "";
+    return {
+      customerId,
+      itemId,
+      label,
+      interval,
+      mrrCents: cents,
+      status: sub.status,
+      startedAt: sub.start_date ?? sub.created ?? null,
+      currentPeriodEnd: item?.current_period_end ?? null,
+      cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+    };
+  });
+  subscribers.sort((a, b) => b.mrrCents - a.mrrCents);
+
+  // Trailing-30-day churn: subscriptions canceled in the window over the base
+  // that existed at the window's start (active-now + those that churned).
+  const cutoff = Math.floor(Date.now() / 1000) - 30 * 86400;
+  const canceled30d = canceled.data.filter((sub) => (sub.canceled_at ?? sub.ended_at ?? 0) >= cutoff).length;
+  const activeSubscribers = active.data.length + pastDue.data.length;
+  const base = activeSubscribers + canceled30d;
+  const churnRate = base > 0 ? canceled30d / base : 0;
+
+  return {
+    mrrCents,
+    arrCents: mrrCents * 12,
+    activeSubscribers,
+    pastDue: pastDue.data.length,
+    scheduledCancels,
+    canceled30d,
+    churnRate,
+    subscribers,
+    truncated: active.has_more || pastDue.has_more || canceled.has_more,
+  };
+}
+
 // ---------------------------------------------------------------- account ---
 // Read + mutate a customer's subscription from our own account page.
 
