@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, ArrowRight, Clapperboard, Film, FolderOpen, Lightbulb, LogOut, Loader2, Mail, Plus, Coins, Scissors, UserCircle, UserRound, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clapperboard, Film, FolderOpen, Lightbulb, LogOut, Loader2, Mail, Package, Plus, Coins, Scissors, UserCircle, UserRound, Sparkles } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
 import { TOPUPS, PLAN_ITEMS, PLAN_ITEMS_YEARLY, billingItem, planVariant, type BillingItem } from "@/lib/billing";
@@ -16,20 +16,22 @@ import { AccountModal } from "@/components/account/account-modal";
 import { LogoWordmark } from "@/components/logo";
 
 // The nav splits into the production pipeline and the library of what you own.
-const NAV_GROUPS = [
+// `short` is the label used on the compact mobile bar (7 items must fit).
+const NAV_GROUPS: { label: string; items: { href: string; label: string; short?: string; icon: typeof Lightbulb }[] }[] = [
   {
     label: "Production",
     items: [
       { href: "/app", label: "Plan", icon: Lightbulb },
       { href: "/app/make", label: "Make", icon: Clapperboard },
       { href: "/app/post", label: "Post", icon: Scissors },
-      { href: "/app/videos", label: "My Videos", icon: Film },
+      { href: "/app/videos", label: "My Videos", short: "Videos", icon: Film },
     ],
   },
   {
     label: "Library",
     items: [
-      { href: "/app/characters", label: "Characters", icon: UserRound },
+      { href: "/app/characters", label: "Characters", short: "Cast", icon: UserRound },
+      { href: "/app/products", label: "Products", short: "Product", icon: Package },
       { href: "/app/assets", label: "Assets", icon: FolderOpen },
     ],
   },
@@ -921,19 +923,19 @@ function MobileNav() {
   const pathname = usePathname();
   return (
     <>
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {NAV_ITEMS.map(({ href, label, short, icon: Icon }) => {
         const active = isActive(href, pathname);
         return (
           <Link
             key={href}
             href={href}
             className={cn(
-              "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium",
+              "flex min-w-0 flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium",
               active ? "text-accent-2" : "text-faint",
             )}
           >
-            <Icon size={20} />
-            {label}
+            <Icon size={19} />
+            <span className="max-w-full truncate">{short ?? label}</span>
           </Link>
         );
       })}

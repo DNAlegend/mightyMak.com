@@ -1,10 +1,9 @@
 "use client";
 
-// Characters — design or capture a character once, get a full reference sheet
-// (turnaround, portrait, expressions), optionally give them a voice, and cast
-// them in any shot. A character is a composite asset plus a collection of its
-// parts, so "Use in Make" fills image slots with their sheets/photos and a
-// sound slot with their voice.
+// Products — add a product once from photos or a description, get a clean
+// multi-angle product sheet, and feature it in any shot. A product is a
+// composite asset plus its parts, so "Use in Make" fills image slots with its
+// sheet and reference photos — keeping the exact same product across every scene.
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -15,10 +14,9 @@ import {
   Coins,
   ImagePlus,
   Loader2,
-  Mic,
+  Package,
   Sparkles,
   Trash2,
-  UserRound,
   X,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -26,24 +24,21 @@ import { cloudConfigured } from "@/lib/supabase";
 import { getModel, priceFor } from "@/lib/models";
 import { uploadDataUrl } from "@/lib/cloud";
 import type { Asset, AssetPart } from "@/lib/types";
-import { cn, uid } from "@/lib/utils";
+import { uid } from "@/lib/utils";
 import { Badge, Button, Card, Progress, Segmented, TextInput } from "@/components/ui";
 
-type StyleKey = "photoreal" | "cinematic" | "anime" | "3d";
+type StyleKey = "studio" | "photoreal" | "lifestyle" | "premium";
 
 const STYLES: Record<StyleKey, { label: string; suffix: string }> = {
-  photoreal: { label: "Photoreal", suffix: "photorealistic, natural skin texture, studio lighting" },
-  cinematic: { label: "Cinematic", suffix: "cinematic film still, dramatic lighting, rich color grade, 35mm grain" },
-  anime: { label: "Anime", suffix: "high-quality anime character art, clean lineart, cel shading" },
-  "3d": { label: "3D Toon", suffix: "stylized 3D animation character render, soft global illumination, expressive" },
+  studio: { label: "Studio", suffix: "clean e-commerce studio shot, pure white background, soft shadows, crisp detail" },
+  photoreal: { label: "Photoreal", suffix: "photorealistic product photography, true materials, soft natural studio light" },
+  lifestyle: { label: "Lifestyle", suffix: "lifestyle product photography, placed in a real setting, natural light, shallow depth of field" },
+  premium: { label: "Premium", suffix: "premium advertising product shot, dramatic lighting, rich reflections, luxury feel" },
 };
 
-/**
- * ONE character = ONE sheet image: a single composition holding every view,
- * modeled on a classic model/character reference sheet.
- */
+/** ONE product = ONE sheet image: every angle in one clean composition. */
 const sheetPrompt = (base: string, style: string) =>
-  `Complete character reference sheet of ${base}, laid out as one clean composition on a pure white background. Top row: full-body turnaround in three views standing side by side — front view with arms slightly outstretched, side profile view, back view — identical outfit, hair and proportions in each. Bottom left: a neat grid of nine close-up head shots with varied expressions and head angles (neutral, happy, angry, surprised, sad, determined, left profile, right profile, looking up). Bottom right: one large waist-up portrait facing camera. The exact same face, hair and outfit in every view, fashion-catalog clarity, even studio lighting. ${style}`;
+  `Complete product reference sheet of ${base}, laid out as one clean composition on a pure white studio background. Top row: the product shown from four angles side by side — front view, three-quarter view, side view, and back view — the identical product, lighting and proportions in each. Bottom left: a neat grid of close-up detail shots showing material, texture and key features. Bottom right: one large hero shot of the product, beautifully lit, catalog quality. The exact same product in every view — same shape, colour and finish — crisp studio lighting, soft reflections, e-commerce clarity. No text, labels or watermarks. ${style}`;
 
 /** A locally staged upload (already in Storage) waiting to be saved as an asset. */
 interface StagedFile {
@@ -51,7 +46,7 @@ interface StagedFile {
   name: string;
 }
 
-export function CharacterStudio() {
+export function ProductStudio() {
   const router = useRouter();
   const assets = useStore((s) => s.assets);
   const videos = useStore((s) => s.videos);
@@ -68,27 +63,25 @@ export function CharacterStudio() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [biology, setBiology] = useState("");
-  const [wardrobe, setWardrobe] = useState("");
-  const [style, setStyle] = useState<StyleKey>("photoreal");
+  const [details, setDetails] = useState("");
+  const [setting, setSetting] = useState("");
+  const [style, setStyle] = useState<StyleKey>("studio");
   const [photos, setPhotos] = useState<StagedFile[]>([]);
-  const [voice, setVoice] = useState<StagedFile | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
-  const voiceRef = useRef<HTMLInputElement>(null);
 
-  const characters = useMemo(
-    () => assets.filter((a) => a.class === "character" && (a.parts?.length ?? 0) > 0),
+  const products = useMemo(
+    () => assets.filter((a) => a.class === "product" && (a.parts?.length ?? 0) > 0),
     [assets],
   );
   const needsSignIn = cloudConfigured && !cloudUser;
   // Unsubscribed: keep Generate clickable so it opens the subscribe paywall.
   const locked = cloudConfigured && subscribed === false;
 
-  // The sheet renders on the 2K image model — identity work deserves the detail.
+  // The sheet renders on the 2K image model — product detail deserves it.
   const model = getModel("seedream-45");
   const cost = priceFor(model, { count: 1 });
   const canAfford = credits >= cost;
@@ -101,16 +94,16 @@ export function CharacterStudio() {
 
   const base = [
     photos.length
-      ? "the exact person shown in the reference photos — same face, same hair, same body"
+      ? "the exact product shown in the reference photos — same shape, colour, materials and finish"
       : null,
     description.trim() || null,
-    biology.trim() || null,
-    wardrobe.trim() ? `wearing ${wardrobe.trim()}` : null,
+    details.trim() || null,
+    setting.trim() ? `presented ${setting.trim()}` : null,
   ]
     .filter(Boolean)
     .join(", ");
 
-  async function stageFiles(files: FileList | null, kind: "photo" | "voice") {
+  async function stageFiles(files: FileList | null) {
     if (!files?.length) return;
     if (needsSignIn) {
       setAuthOpen(true);
@@ -119,7 +112,7 @@ export function CharacterStudio() {
     setUploading(true);
     setUploadError(null);
     try {
-      for (const file of Array.from(files).slice(0, kind === "photo" ? 4 - photos.length : 1)) {
+      for (const file of Array.from(files).slice(0, 4 - photos.length)) {
         if (file.size > 8 * 1024 * 1024) {
           setUploadError("Files must be under 8 MB.");
           continue;
@@ -130,14 +123,12 @@ export function CharacterStudio() {
           r.onerror = rej;
           r.readAsDataURL(file);
         });
-        const url = await uploadDataUrl(uid("charup"), dataUrl);
+        const url = await uploadDataUrl(uid("produp"), dataUrl);
         if (!url) {
           setUploadError("Upload failed — try again.");
           continue;
         }
-        const staged = { url, name: file.name.replace(/\.[^.]+$/, "") };
-        if (kind === "photo") setPhotos((p) => [...p, staged].slice(0, 4));
-        else setVoice(staged);
+        setPhotos((p) => [...p, { url, name: file.name.replace(/\.[^.]+$/, "") }].slice(0, 4));
       }
     } finally {
       setUploading(false);
@@ -167,104 +158,84 @@ export function CharacterStudio() {
     );
   }
 
-  /** Character = a collection of real assets + one composite card that bundles them. */
+  /** Product = a collection of real assets + one composite card that bundles them. */
   function onSave() {
-    const charName = name.trim() || "New Character";
-    const col = addCategory(`${charName} — character`);
+    const prodName = name.trim() || "New Product";
+    const col = addCategory(`${prodName} — product`);
 
     photos.forEach((p, i) => {
       addAsset({
-        name: `${charName} — photo ${i + 1}`,
+        name: `${prodName} — photo ${i + 1}`,
         kind: "image",
         url: p.url,
         posterUrl: p.url,
         categoryId: col.id,
         source: "upload",
-        promptFragment: `${charName}'s reference photo`,
+        promptFragment: `${prodName}'s reference photo`,
       });
     });
     if (sheetUrl) {
       addAsset({
-        name: `${charName} — character sheet`,
+        name: `${prodName} — product sheet`,
         kind: "image",
         url: sheetUrl,
         posterUrl: sheetUrl,
         categoryId: col.id,
         source: "generation",
-        promptFragment: `${charName}'s character sheet — every angle of them`,
-      });
-    }
-    if (voice) {
-      addAsset({
-        name: `${charName} — voice`,
-        kind: "audio",
-        url: voice.url,
-        categoryId: col.id,
-        source: "upload",
-        promptFragment: `${charName}'s voice`,
+        promptFragment: `${prodName}'s product sheet — every angle of it`,
       });
     }
 
     const parts: AssetPart[] = [
       ...photos.map((p, i) => ({
-        role: "face" as const,
+        role: "reference" as const,
         kind: "image" as const,
         url: p.url,
         posterUrl: p.url,
         label: `Photo ${i + 1}`,
       })),
       ...(sheetUrl
-        ? [
-            {
-              role: "primary" as const,
-              kind: "image" as const,
-              url: sheetUrl,
-              posterUrl: sheetUrl,
-              label: "Character sheet",
-            },
-          ]
+        ? [{ role: "primary" as const, kind: "image" as const, url: sheetUrl, posterUrl: sheetUrl, label: "Product sheet" }]
         : []),
-      ...(voice ? [{ role: "voice" as const, kind: "audio" as const, url: voice.url, label: "Voice" }] : []),
     ];
     const hero = sheetUrl ?? photos[0]?.url;
     addAsset({
-      name: charName,
+      name: prodName,
       kind: "image",
       url: hero ?? "",
       posterUrl: hero,
       categoryId: col.id,
       source: "generation",
-      class: "character",
-      promptFragment: `${charName}${description.trim() ? `, ${description.trim().split(/[,.\n]/)[0].toLowerCase()}` : ""}`,
+      class: "product",
+      promptFragment: `${prodName}${description.trim() ? `, ${description.trim().split(/[,.\n]/)[0].toLowerCase()}` : ""}`,
       parts,
     } as Omit<Asset, "id" | "createdAt">);
     setSaved(true);
   }
 
-  /** Cast them: their sheets & photos fill image slots, their voice a sound slot. */
-  function useInMake(character: Asset) {
+  /** Feature it: its sheet & photos fill image slots in Make. */
+  function useInMake(product: Asset) {
     const ids = assets
-      .filter((a) => a.categoryId === character.categoryId && a.id !== character.id)
+      .filter((a) => a.categoryId === product.categoryId && a.id !== product.id)
       .map((a) => a.id);
-    setDraftElements(ids.length ? ids : [character.id]);
+    setDraftElements(ids.length ? ids : [product.id]);
     router.push("/app/make");
   }
 
   return (
     <div className="mx-auto max-w-5xl">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Characters</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Products</h1>
         <p className="mt-1 text-sm text-muted">
-          Create a character from photos or a description — get a full character sheet, give
-          them a voice, and cast them in any video.
+          Add a product from photos or a description — get a clean multi-angle product sheet, then
+          feature the exact same product in any video.
         </p>
       </header>
 
-      {/* ------------------------- Saved characters ------------------------- */}
-      {characters.length > 0 && (
+      {/* ------------------------- Saved products ------------------------- */}
+      {products.length > 0 && (
         <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {characters.map((c) => {
-            const hasVoice = c.parts?.some((p) => p.role === "voice");
+          {products.map((c) => {
             const views = c.parts?.filter((p) => p.kind === "image").length ?? 0;
             return (
               <Card key={c.id} className="group overflow-hidden">
@@ -274,31 +245,24 @@ export function CharacterStudio() {
                     <img src={c.posterUrl ?? c.url} alt={c.name} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-faint">
-                      <UserRound size={26} />
+                      <Package size={26} />
                     </div>
                   )}
                   <button
                     onClick={() => {
-                      if (confirm(`Delete ${c.name}? Their sheet assets stay in your library.`)) {
+                      if (confirm(`Delete ${c.name}? Its sheet assets stay in your library.`)) {
                         removeAsset(c.id);
                       }
                     }}
                     className="absolute right-2 top-2 rounded-lg bg-black/55 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/75 group-hover:opacity-100"
-                    aria-label="Delete character"
+                    aria-label="Delete product"
                   >
                     <Trash2 size={13} />
                   </button>
                 </div>
                 <div className="p-3">
                   <div className="truncate text-[13.5px] font-semibold">{c.name}</div>
-                  <div className="mt-1 flex items-center gap-1.5 text-[11px] text-faint">
-                    {views} views
-                    {hasVoice && (
-                      <Badge tone="teal">
-                        <Mic size={10} /> Voice
-                      </Badge>
-                    )}
-                  </div>
+                  <div className="mt-1 text-[11px] text-faint">{views} views</div>
                   <Button size="sm" variant="soft" className="mt-2 w-full" onClick={() => useInMake(c)}>
                     <Sparkles size={13} /> Use in Make
                   </Button>
@@ -313,15 +277,15 @@ export function CharacterStudio() {
         {/* ------------------------------ Form ------------------------------ */}
         <Card className="h-fit p-5">
           <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent-2">
-            <UserRound size={14} /> New character
+            <Package size={14} /> New product
           </div>
 
           <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-faint">Name</label>
-          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Aria, Kato, Nova…" />
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Glow Serum, Court Sneaker…" />
 
-          {/* Photos — build the character from one or more pictures */}
+          {/* Photos — build the product from one or more pictures */}
           <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
-            Photos <span className="normal-case">(optional — 1 to 4 pictures of them)</span>
+            Photos <span className="normal-case">(optional — 1 to 4 pictures of it)</span>
           </label>
           <div className="flex flex-wrap gap-2">
             {photos.map((p, i) => (
@@ -354,73 +318,41 @@ export function CharacterStudio() {
               multiple
               className="hidden"
               onChange={(e) => {
-                void stageFiles(e.target.files, "photo");
+                void stageFiles(e.target.files);
                 e.target.value = "";
               }}
             />
           </div>
 
           <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
-            Who are they?
+            What is it?
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
-            placeholder="A confident creative director in her late 20s, calm and warm…"
+            placeholder="A frosted-glass skincare serum bottle with a bamboo dropper cap…"
             className="w-full resize-none rounded-xl border border-line bg-surface-2 p-3 text-base leading-relaxed text-fg placeholder:text-faint focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm"
           />
 
           <label className="mb-1.5 mt-3 block text-xs font-medium uppercase tracking-wide text-faint">
-            Biology <span className="normal-case">(body, face, hair — the physical facts)</span>
+            Details <span className="normal-case">(materials, colours, finish)</span>
           </label>
           <textarea
-            value={biology}
-            onChange={(e) => setBiology(e.target.value)}
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
             rows={2}
-            placeholder="Long blonde hair, blue eyes, fair skin, 175cm, athletic build…"
+            placeholder="Amber glass, brushed-gold collar, matte label, 30ml, soft-touch cap…"
             className="w-full resize-none rounded-xl border border-line bg-surface-2 p-3 text-base leading-relaxed text-fg placeholder:text-faint focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm"
           />
 
           <label className="mb-1.5 mt-3 block text-xs font-medium uppercase tracking-wide text-faint">
-            What are they wearing?
+            Setting or packaging <span className="normal-case">(optional)</span>
           </label>
           <TextInput
-            value={wardrobe}
-            onChange={(e) => setWardrobe(e.target.value)}
-            placeholder="a camel wool coat over a cream sweater, black leggings, ankle boots"
-          />
-
-          {/* Voice — optional */}
-          <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
-            Voice <span className="normal-case">(optional — a sample of how they sound)</span>
-          </label>
-          {voice ? (
-            <span className="flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-[13px]">
-              <Mic size={14} className="text-teal" />
-              <span className="min-w-0 flex-1 truncate">{voice.name}</span>
-              <button onClick={() => setVoice(null)} className="text-faint hover:text-fg" aria-label="Remove voice">
-                <X size={13} />
-              </button>
-            </span>
-          ) : (
-            <button
-              onClick={() => voiceRef.current?.click()}
-              disabled={uploading}
-              className="flex items-center gap-2 rounded-xl border border-dashed border-line-2 px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:border-accent/50 hover:text-fg"
-            >
-              <Mic size={14} className="text-accent-2" /> Add voice sample
-            </button>
-          )}
-          <input
-            ref={voiceRef}
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            onChange={(e) => {
-              void stageFiles(e.target.files, "voice");
-              e.target.value = "";
-            }}
+            value={setting}
+            onChange={(e) => setSetting(e.target.value)}
+            placeholder="in a minimal white gift box, on a marble surface"
           />
           {uploadError && <p className="mt-2 text-xs text-danger">{uploadError}</p>}
 
@@ -458,7 +390,7 @@ export function CharacterStudio() {
                 </>
               ) : (
                 <>
-                  <Sparkles size={17} /> Generate character sheet
+                  <Sparkles size={17} /> Generate product sheet
                 </>
               )}
             </Button>
@@ -475,11 +407,11 @@ export function CharacterStudio() {
           {!job ? (
             <Card className="flex min-h-[320px] flex-col items-center justify-center p-8 text-center">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent-2">
-                <UserRound size={22} />
+                <Package size={22} />
               </span>
               <p className="mt-3 max-w-sm text-sm text-muted">
-                Your character sheet appears here — one image with every angle of them:
-                full-body turnaround, head angles and expressions, and a portrait.
+                Your product sheet appears here — one image with every angle of it: front,
+                three-quarter, side and back, detail close-ups, and a hero shot.
               </p>
             </Card>
           ) : (
@@ -494,7 +426,7 @@ export function CharacterStudio() {
                   </div>
                 ) : sheetUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={sheetUrl} alt="Character sheet" className="h-full w-full object-cover" />
+                  <img src={sheetUrl} alt="Product sheet" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full items-center justify-center p-4 text-center text-xs text-danger">
                     {job.error ?? "Failed"}
@@ -502,7 +434,7 @@ export function CharacterStudio() {
                 )}
                 <span className="absolute left-2 top-2">
                   <Badge tone="neutral" className="border-white/20 bg-black/55 text-white backdrop-blur-sm">
-                    Character sheet
+                    Product sheet
                   </Badge>
                 </span>
               </div>
@@ -514,17 +446,17 @@ export function CharacterStudio() {
               <Button onClick={onSave} disabled={saved}>
                 {saved ? (
                   <>
-                    <Check size={16} className="text-teal" /> Saved to Characters
+                    <Check size={16} className="text-teal" /> Saved to Products
                   </>
                 ) : (
                   <>
-                    <Bookmark size={16} /> Save character
+                    <Bookmark size={16} /> Save product
                   </>
                 )}
               </Button>
               {saved && (
                 <Button variant="ghost" size="sm" className="ml-auto" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-                  See your characters <ArrowRight size={15} />
+                  See your products <ArrowRight size={15} />
                 </Button>
               )}
             </Card>
