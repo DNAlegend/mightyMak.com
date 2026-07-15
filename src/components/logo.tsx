@@ -1,11 +1,11 @@
-// The VIBVID mark: the logo's red "VID" pill distilled to a square —
-// a rounded red tile with a white play triangle. Reads at favicon size up.
+// The VIBVID square mark (public/logo-square.png) — the brand logo used for the
+// app/favicon and any square placement. `animated` is kept for API
+// compatibility; the image itself carries the design.
 
 import { cn } from "@/lib/utils";
 
 export function LogoMark({
   size = 36,
-  animated = true,
   className,
 }: {
   size?: number;
@@ -13,23 +13,15 @@ export function LogoMark({
   className?: string;
 }) {
   return (
-    <svg
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/logo-square.png"
+      alt="VIBVID.AI"
       width={size}
       height={size}
-      viewBox="0 0 40 40"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden
-    >
-      {/* the red pill, squared for the app icon */}
-      <rect width="40" height="40" rx="11" fill="#ec1320" />
-      {/* play cue — the video studio gesture */}
-      <path d="M16 13 L28 20 L16 27 Z" fill="#ffffff">
-        {animated && (
-          <animate attributeName="opacity" values="1;0.6;1" dur="3.2s" repeatCount="indefinite" />
-        )}
-      </path>
-    </svg>
+      draggable={false}
+      className={cn("rounded-[0.28em]", className)}
+    />
   );
 }
 
