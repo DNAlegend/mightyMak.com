@@ -18,7 +18,14 @@ export const SHOT_LIMIT = 6;
 export type AssetKind = "image" | "video" | "audio" | "prompt";
 
 /** The library taxonomy a client organizes their assets into. */
-export type AssetClass = "character" | "dress" | "scene" | "dance" | "audio" | "product";
+export type AssetClass =
+  | "character"
+  | "dress"
+  | "scene"
+  | "dance"
+  | "audio"
+  | "product"
+  | "storyboard";
 
 /** Whose library an asset lives in. */
 export type AssetOwner = "user" | "business";

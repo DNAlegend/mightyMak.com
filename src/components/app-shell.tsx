@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, ArrowRight, Clapperboard, Film, FolderOpen, Lightbulb, LogOut, Loader2, Mail, Package, Plus, Coins, Scissors, UserCircle, UserRound, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clapperboard, Film, FolderOpen, LayoutGrid, Lightbulb, LogOut, Loader2, Mail, Package, Plus, Coins, Scissors, UserCircle, UserRound, Sparkles } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
 import { TOPUPS, PLAN_ITEMS, PLAN_ITEMS_YEARLY, billingItem, planVariant, type BillingItem } from "@/lib/billing";
@@ -16,12 +16,13 @@ import { AccountModal } from "@/components/account/account-modal";
 import { LogoWordmark } from "@/components/logo";
 
 // The nav splits into the production pipeline and the library of what you own.
-// `short` is the label used on the compact mobile bar (7 items must fit).
+// `short` is the label used on the compact mobile bar (8 items must fit).
 const NAV_GROUPS: { label: string; items: { href: string; label: string; short?: string; icon: typeof Lightbulb }[] }[] = [
   {
     label: "Production",
     items: [
       { href: "/app", label: "Plan", icon: Lightbulb },
+      { href: "/app/storyboard", label: "Storyboard", short: "Board", icon: LayoutGrid },
       { href: "/app/make", label: "Make", icon: Clapperboard },
       { href: "/app/post", label: "Post", icon: Scissors },
       { href: "/app/videos", label: "My Videos", short: "Videos", icon: Film },
