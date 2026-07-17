@@ -7,9 +7,8 @@
 // length) and a board IMAGE prompt that renders all nine key frames as a
 // single 3×3 sheet on Seedream, steered by the product's reference photos.
 // A finished board saves itself automatically, and "Use in Make" feeds the
-// sheet in as a reference with the prompt and length preloaded. The
-// Storyboard Library below is a browsable set of worked examples — sheet,
-// prompt and video result — anyone can load and generate the same.
+// sheet in as a reference with the prompt and length preloaded. Boards are
+// private: each creator sees only their own sheets and prompts.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -21,7 +20,6 @@ import {
   Coins,
   Copy,
   LayoutGrid,
-  Library,
   Loader2,
   Package,
   PenLine,
@@ -31,7 +29,7 @@ import {
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
 import { getModel, priceFor } from "@/lib/models";
-import { STORYBOARD_LIBRARY, storyboardDurationSec, type StoryboardExample } from "@/lib/storyboard-library";
+import { storyboardDurationSec } from "@/lib/storyboard-library";
 import type { Asset } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Badge, Button, Card, Progress, Segmented } from "@/components/ui";
@@ -78,7 +76,8 @@ export function StoryboardStudio() {
   /** Job ids already auto-saved — a board saves itself exactly once. */
   const savedJobs = useRef<Set<string>>(new Set());
   const [savedAssetId, setSavedAssetId] = useState<string | null>(null);
-  const [openExample, setOpenExample] = useState<string | null>(null);
+  /** Saved-board card whose full prompt is expanded. */
+  const [openBoard, setOpenBoard] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const boards = useMemo(() => assets.filter((a) => a.class === "storyboard"), [assets]);
@@ -208,30 +207,10 @@ export function StoryboardStudio() {
     router.push("/app/make");
   }
 
-  /** Load a library example: copy it into the creator's boards, then into Make. */
-  function useExample(ex: StoryboardExample) {
-    const col = addCategory(`${ex.title} — storyboard`);
-    const asset = addAsset({
-      name: ex.title,
-      kind: "image",
-      url: ex.sheetUrl,
-      posterUrl: ex.sheetUrl,
-      categoryId: col.id,
-      source: "generation",
-      class: "storyboard",
-      promptFragment: ex.prompt,
-      parts: [
-        { role: "primary", kind: "image", url: ex.sheetUrl, posterUrl: ex.sheetUrl, label: "Storyboard sheet" },
-        { role: "reference", kind: "prompt", url: String(ex.durationSec), label: `Video length: ${ex.durationSec}s` },
-      ],
-    } as Omit<Asset, "id" | "createdAt">);
-    useInMake(asset);
-  }
-
-  async function copyPrompt(ex: StoryboardExample) {
+  async function copyPrompt(id: string, text: string) {
     try {
-      await navigator.clipboard.writeText(ex.prompt);
-      setCopiedId(ex.id);
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
       setTimeout(() => setCopiedId(null), 1800);
     } catch {
       /* clipboard unavailable — the prompt is visible to select manually */
@@ -289,7 +268,38 @@ export function StoryboardStudio() {
                 <div className="p-3">
                   <div className="truncate text-[13.5px] font-semibold">{b.name}</div>
                   {b.promptFragment && (
-                    <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-faint">{b.promptFragment}</p>
+                    <>
+                      <p
+                        className={cn(
+                          "mt-1 whitespace-pre-wrap text-[11.5px] leading-snug text-faint",
+                          openBoard !== b.id && "line-clamp-2",
+                        )}
+                      >
+                        {b.promptFragment}
+                      </p>
+                      <div className="mt-1 flex items-center gap-3">
+                        <button
+                          onClick={() => setOpenBoard(openBoard === b.id ? null : b.id)}
+                          className="text-[11px] font-medium text-accent-2 hover:underline"
+                        >
+                          {openBoard === b.id ? "Hide the prompt" : "Read the full prompt"}
+                        </button>
+                        <button
+                          onClick={() => copyPrompt(b.id, b.promptFragment!)}
+                          className="flex items-center gap-1 text-[11px] font-medium text-muted hover:text-fg"
+                        >
+                          {copiedId === b.id ? (
+                            <>
+                              <Check size={11} className="text-teal" /> Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={11} /> Copy
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </>
                   )}
                   <Button size="sm" variant="soft" className="mt-2 w-full" onClick={() => useInMake(b)}>
                     <Sparkles size={13} /> Use in Make
@@ -541,95 +551,6 @@ export function StoryboardStudio() {
         </div>
       </div>
 
-      {/* ------------------------- Storyboard Library ------------------------- */}
-      {STORYBOARD_LIBRARY.length > 0 && (
-        <section className="mt-12">
-          <div className="mb-1 flex items-center gap-2">
-            <Library size={17} className="text-accent-2" />
-            <h2 className="text-lg font-bold tracking-tight">Storyboard Library</h2>
-          </div>
-          <p className="mb-4 text-sm text-muted">
-            Worked examples — the sheet, the full Seedance prompt and the video it generated. Load
-            one and make the same for your product.
-          </p>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {STORYBOARD_LIBRARY.map((ex) => {
-              const open = openExample === ex.id;
-              return (
-                <Card key={ex.id} className="overflow-hidden">
-                  <div className="grid grid-cols-2">
-                    <div className="relative bg-surface-2">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={ex.sheetUrl} alt={`${ex.title} storyboard`} className="h-full w-full object-cover" />
-                      <span className="absolute left-2 top-2">
-                        <Badge tone="neutral" className="border-white/20 bg-black/55 text-white backdrop-blur-sm">
-                          Storyboard
-                        </Badge>
-                      </span>
-                    </div>
-                    <div className="relative bg-black">
-                      {ex.videoUrl ? (
-                        <video
-                          src={ex.videoUrl}
-                          poster={ex.sheetUrl}
-                          controls
-                          muted
-                          playsInline
-                          preload="metadata"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-xs text-faint">
-                          Video rendering…
-                        </div>
-                      )}
-                      <span className="pointer-events-none absolute left-2 top-2">
-                        <Badge tone="neutral" className="border-white/20 bg-black/55 text-white backdrop-blur-sm">
-                          Result
-                        </Badge>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{ex.title}</span>
-                      <Badge tone="neutral">
-                        <Clock size={10} /> {ex.durationSec}s
-                      </Badge>
-                    </div>
-                    <p className="mt-0.5 truncate text-[12px] text-faint">{ex.product}</p>
-                    <p className={cn("mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-muted", !open && "line-clamp-3")}>
-                      {ex.prompt}
-                    </p>
-                    <button
-                      onClick={() => setOpenExample(open ? null : ex.id)}
-                      className="mt-1 text-[11.5px] font-medium text-accent-2 hover:underline"
-                    >
-                      {open ? "Hide the full prompt" : "Read the full prompt"}
-                    </button>
-                    <div className="mt-3 flex items-center gap-2">
-                      <Button size="sm" onClick={() => useExample(ex)}>
-                        <Sparkles size={13} /> Use this storyboard
-                      </Button>
-                      <Button size="sm" variant="soft" onClick={() => copyPrompt(ex)}>
-                        {copiedId === ex.id ? (
-                          <>
-                            <Check size={13} className="text-teal" /> Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy size={13} /> Copy prompt
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        </section>
-      )}
     </div>
   );
 }
