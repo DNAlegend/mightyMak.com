@@ -32,7 +32,7 @@ import { cloudConfigured } from "@/lib/supabase";
 import { getModel, listModels, priceFor, videoRate, DEFAULT_MODEL_ID } from "@/lib/models";
 import { ASSET_CLASSES, CLASS_BY_KEY, composeFromAssets } from "@/lib/catalog";
 import { storyboardDurationSec } from "@/lib/storyboard";
-import { PURPOSES, PURPOSE_BY_ID, DEFAULT_PURPOSE_ID } from "@/lib/purposes";
+import { PURPOSE_BY_ID, DEFAULT_PURPOSE_ID } from "@/lib/purposes";
 import {
   DURATIONS,
   REF_IMAGE_LIMIT,
@@ -65,46 +65,6 @@ function SectionTitle({ title, sub }: { title: string; sub: string }) {
     <div className="mb-3.5 mt-6 border-t border-line pt-5">
       <h2 className="text-[15px] font-bold tracking-tight text-fg">{title}</h2>
       <p className="mt-0.5 text-[12.5px] text-muted">{sub}</p>
-    </div>
-  );
-}
-
-/**
- * "What are you making?" — purpose presets as a chip row on step 1. Picking one
- * configures format, model, duration and which asset slots surface first.
- * Filtered by the current modality so a chip never flips video↔image mid-wizard.
- */
-function PurposePicker({
-  current,
-  modality,
-  onPick,
-}: {
-  current: string;
-  modality: Modality;
-  onPick: (id: string) => void;
-}) {
-  const list = PURPOSES.filter((p) => p.modality === modality);
-  const selected = PURPOSE_BY_ID[current];
-  return (
-    <div className="mb-4">
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:flex-wrap">
-        {list.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => onPick(p.id)}
-            className={cn(
-              "shrink-0 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors",
-              current === p.id
-                ? "border-accent bg-accent-soft text-fg"
-                : "border-line text-muted hover:border-line-2 hover:text-fg",
-            )}
-          >
-            <span className="mr-1">{p.glyph}</span>
-            {p.label}
-          </button>
-        ))}
-      </div>
-      {selected && <p className="mt-1 text-[12px] text-faint">{selected.tagline}</p>}
     </div>
   );
 }
@@ -810,9 +770,6 @@ export function MakeView({ mode }: { mode?: Modality }) {
       <Card className="overflow-hidden">
         <div className="p-5">
           <div>
-          {/* What are you making? Purpose presets configure format + slots. */}
-          <PurposePicker current={purposeId} modality={modality} onPick={applyPurpose} />
-
           {/* Provenance: this session is producing a shot from the production. */}
           {planIdea && (
             <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2.5">
