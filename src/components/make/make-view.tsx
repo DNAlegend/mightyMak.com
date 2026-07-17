@@ -23,6 +23,7 @@ import {
   Mic,
   Image as ImageIcon,
   LayoutGrid,
+  Lock,
   Pencil,
   Rows3,
   ScrollText,
@@ -280,6 +281,8 @@ export function MakeView({ mode }: { mode?: Modality }) {
   const [prompt, setPrompt] = useState("");
   const [picks, setPicks] = useState<Picks>({});
   const [board, setBoard] = useState<Board>(EMPTY_BOARD);
+  /** Format chosen and tucked away — Edit on the summary reopens the pickers. */
+  const [formatLocked, setFormatLocked] = useState(false);
   /** The attached storyboard (asset id) — its sheet + story prompt ride with the shot. */
   const [storyboardId, setStoryboardId] = useState<string | null>(null);
   const [boardPickZone, setBoardPickZone] = useState<BoardZone | null>(null);
@@ -812,342 +815,151 @@ export function MakeView({ mode }: { mode?: Modality }) {
             <h2 className="text-[15px] font-bold tracking-tight text-fg">Model &amp; format</h2>
             <p className="mt-0.5 text-[12.5px] text-muted">The exact model, quality, aspect and length</p>
           </div>
-          {/* One card per flavor — picking it sets the model + its default quality. */}
-          <div className="mb-3 grid grid-cols-3 gap-2">
-            {MODEL_CHOICES.map((c) => {
-              const m = getModel(c.modelId);
-              const on = activeChoice.key === c.key;
-              return (
-                <button
-                  key={c.key}
-                  onClick={() => {
-                    setModelId(c.modelId);
-                    setResolution(c.resolution);
-                  }}
-                  title={m.blurb}
-                  className={cn(
-                    "rounded-xl border p-3 text-left transition-all",
-                    on
-                      ? "border-accent bg-accent-soft shadow-sm"
-                      : "border-line hover:-translate-y-0.5 hover:border-line-2",
-                  )}
-                >
-                  <span className="text-xl">{c.emoji}</span>
-                  <span className="mt-0.5 block text-[13px] font-bold text-fg">{c.label}</span>
-                  <span className="block min-h-[2.6em] text-[11px] leading-snug text-muted">{c.tagline}</span>
-                  <span
+          {/* Once the format is chosen it locks into a one-line summary; Edit reopens it. */}
+          {formatLocked ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2 px-3.5 py-2.5">
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium text-fg">
+                <span className="text-lg">{activeChoice.emoji}</span>
+                {activeChoice.label}
+                <Badge tone="neutral">{resolution}</Badge>
+                <Badge tone="neutral">{aspectRatio}</Badge>
+                {modality === "video" && <Badge tone="neutral">{durationSec}s</Badge>}
+                <Lock size={12} className="text-faint" />
+              </span>
+              <Button size="sm" variant="soft" onClick={() => setFormatLocked(false)}>
+                <Pencil size={13} /> Edit
+              </Button>
+            </div>
+          ) : (
+            <>
+            {/* One card per flavor — picking it sets the model + its default quality. */}
+            <div className="mb-3 grid grid-cols-3 gap-2">
+              {MODEL_CHOICES.map((c) => {
+                const m = getModel(c.modelId);
+                const on = activeChoice.key === c.key;
+                return (
+                  <button
+                    key={c.key}
+                    onClick={() => {
+                      setModelId(c.modelId);
+                      setResolution(c.resolution);
+                    }}
+                    title={m.blurb}
                     className={cn(
-                      "mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-semibold",
-                      on ? "bg-accent text-white" : "bg-surface-2 text-faint",
+                      "rounded-xl border p-3 text-left transition-all",
+                      on
+                        ? "border-accent bg-accent-soft shadow-sm"
+                        : "border-line hover:-translate-y-0.5 hover:border-line-2",
                     )}
                   >
-                    {on ? resolution : c.resolution} · {videoRate(m, on ? resolution : c.resolution)} cr/s
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            {/* Quality lives inside the picked card's world: Mini and Pro each
-                offer their two; 4K is 4K — locked, nothing else to pick. */}
-            <div className="flex items-center gap-1.5">
-              <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-faint">Quality</span>
-              {activeChoice.qualities.map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setResolution(r)}
-                  disabled={activeChoice.key === "4k"}
-                  title={
-                    activeChoice.key === "4k"
-                      ? "4K is the whole point of this one"
-                      : `${videoRate(model, r)} credits / second`
-                  }
-                  className={cn(
-                    "rounded-lg border px-2.5 py-1 text-[12px] font-medium transition-colors",
-                    resolution === r
-                      ? "border-accent bg-accent-soft text-fg"
-                      : "border-line text-muted hover:border-line-2",
-                    activeChoice.key === "4k" && "cursor-default",
-                  )}
-                >
-                  {r}
-                  <span className={cn("ml-1 text-[10px]", resolution === r ? "text-accent-2" : "text-faint")}>
-                    {videoRate(model, r)}c/s
-                  </span>
-                </button>
-              ))}
-              {activeChoice.key === "4k" && (
-                <span className="text-[11px] text-faint">— locked in, as it should be</span>
-              )}
+                    <span className="text-xl">{c.emoji}</span>
+                    <span className="mt-0.5 block text-[13px] font-bold text-fg">{c.label}</span>
+                    <span className="block min-h-[2.6em] text-[11px] leading-snug text-muted">{c.tagline}</span>
+                    <span
+                      className={cn(
+                        "mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-semibold",
+                        on ? "bg-accent text-white" : "bg-surface-2 text-faint",
+                      )}
+                    >
+                      {on ? resolution : c.resolution} · {videoRate(m, on ? resolution : c.resolution)} cr/s
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-faint">Aspect</span>
-              {(
-                [
-                  // A little frame you can read at a glance: wide, tall, square.
-                  { r: "16:9", label: "Wide", frame: "h-[11px] w-[19px]" },
-                  { r: "9:16", label: "Tall", frame: "h-[19px] w-[11px]" },
-                  { r: "1:1", label: "Square", frame: "h-[15px] w-[15px]" },
-                ] as const
-              ).map(({ r, label, frame }) => (
-                <button
-                  key={r}
-                  onClick={() => setAspectRatio(r)}
-                  title={`${label} · ${r}`}
-                  className={cn(
-                    "flex h-9 items-center gap-2 rounded-lg border px-2.5 text-[12px] font-medium transition-colors",
-                    aspectRatio === r
-                      ? "border-accent bg-accent-soft text-fg"
-                      : "border-line text-muted hover:border-line-2",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-[3px] border-[1.5px]",
-                      frame,
-                      aspectRatio === r ? "border-accent-2 bg-accent/15" : "border-faint",
-                    )}
-                  />
-                  {r}
-                </button>
-              ))}
-            </div>
-            {modality === "video" && (
+            <div className="space-y-2.5">
+              {/* Quality lives inside the picked card's world: Mini and Pro each
+                  offer their two; 4K is 4K — locked, nothing else to pick. */}
               <div className="flex items-center gap-1.5">
-                <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-faint">Length</span>
-                {DURATIONS.map((d) => (
+                <span className="mr-1 inline-block w-14 text-[11px] font-semibold uppercase tracking-wide text-faint">Quality</span>
+                {activeChoice.qualities.map((r) => (
                   <button
-                    key={d}
-                    onClick={() => setDurationSec(d)}
+                    key={r}
+                    onClick={() => setResolution(r)}
+                    disabled={activeChoice.key === "4k"}
+                    title={
+                      activeChoice.key === "4k"
+                        ? "4K is the whole point of this one"
+                        : `${videoRate(model, r)} credits / second`
+                    }
                     className={cn(
                       "rounded-lg border px-2.5 py-1 text-[12px] font-medium transition-colors",
-                      durationSec === d
+                      resolution === r
+                        ? "border-accent bg-accent-soft text-fg"
+                        : "border-line text-muted hover:border-line-2",
+                      activeChoice.key === "4k" && "cursor-default",
+                    )}
+                  >
+                    {r}
+                    <span className={cn("ml-1 text-[10px]", resolution === r ? "text-accent-2" : "text-faint")}>
+                      {videoRate(model, r)}c/s
+                    </span>
+                  </button>
+                ))}
+                {activeChoice.key === "4k" && (
+                  <span className="text-[11px] text-faint">— locked in, as it should be</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="mr-1 inline-block w-14 text-[11px] font-semibold uppercase tracking-wide text-faint">Aspect</span>
+                {(
+                  [
+                    // A little frame you can read at a glance: wide, tall, square.
+                    { r: "16:9", label: "Wide", frame: "h-[11px] w-[19px]" },
+                    { r: "9:16", label: "Tall", frame: "h-[19px] w-[11px]" },
+                    { r: "1:1", label: "Square", frame: "h-[15px] w-[15px]" },
+                  ] as const
+                ).map(({ r, label, frame }) => (
+                  <button
+                    key={r}
+                    onClick={() => setAspectRatio(r)}
+                    title={`${label} · ${r}`}
+                    className={cn(
+                      "flex h-9 items-center gap-2 rounded-lg border px-2.5 text-[12px] font-medium transition-colors",
+                      aspectRatio === r
                         ? "border-accent bg-accent-soft text-fg"
                         : "border-line text-muted hover:border-line-2",
                     )}
                   >
-                    {d}s
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-[3px] border-[1.5px]",
+                        frame,
+                        aspectRatio === r ? "border-accent-2 bg-accent/15" : "border-faint",
+                      )}
+                    />
+                    {r}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
-
-          <SectionTitle title="Describe" sub="What's the shot?" />
-          <div>
-          {/* Provenance: this session is producing a shot from the production. */}
-          {planIdea && (
-            <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2.5">
-              <div className="flex items-center gap-2">
-                <Lightbulb size={14} className="shrink-0 text-accent-2" />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
-                  {shotNumber > 0 && <span className="font-bold">Shot {shotNumber}</span>}
-                  {planOfRef?.title || planOfRef?.brief ? (
-                    <>
-                      {" "}of <span className="font-semibold">{planOfRef.title || planOfRef.brief}</span>
-                    </>
-                  ) : null}
-                  {" — "}
-                  {planIdea.title}
-                </span>
-                <button
-                  onClick={() => setPlanRef(null)}
-                  className="shrink-0 text-[12px] font-medium text-faint hover:text-fg"
-                  title="Detach from the plan"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="mt-1.5 flex items-center gap-3 pl-6">
-                <Link
-                  href="/app"
-                  className="text-[12px] font-semibold text-accent-2 hover:underline"
-                >
-                  ← Back to the plan to fix it
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Provenance: this shot is generated from an attached storyboard. */}
-          {activeStoryboard && (
-            <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2.5">
-              <div className="flex items-center gap-2">
-                <LayoutGrid size={14} className="shrink-0 text-accent-2" />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
-                  <span className="font-bold">Storyboard</span> —{" "}
-                  <span className="font-semibold">{activeStoryboard.name}</span>: the sheet rides as an image
-                  reference and its story prompt is included in the script.
-                </span>
-                <button
-                  onClick={() => attachStoryboard(activeStoryboard)}
-                  className="shrink-0 text-[12px] font-medium text-faint hover:text-fg"
-                  title="Detach the storyboard"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Script — organized beat view when it has a timeline; textarea to edit. */}
-          {(() => {
-            const segs = planSegments(prompt);
-            const canOrganize = !!segs && segs.length > 1;
-            if (canOrganize && !editScript) {
-              return (
-                <div>
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <span className="text-[12px] font-semibold uppercase tracking-wider text-faint">
-                      Script
-                    </span>
-                    <span className="text-[11px] text-faint">{segs!.length} beats</span>
-                    <Button
-                      variant="soft"
-                      size="sm"
-                      className="ml-auto gap-1.5"
-                      onClick={() => setEditScript(true)}
+              {modality === "video" && (
+                <div className="flex items-center gap-1.5">
+                  <span className="mr-1 inline-block w-14 text-[11px] font-semibold uppercase tracking-wide text-faint">Length</span>
+                  {DURATIONS.map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setDurationSec(d)}
+                      className={cn(
+                        "rounded-lg border px-2.5 py-1 text-[12px] font-medium transition-colors",
+                        durationSec === d
+                          ? "border-accent bg-accent-soft text-fg"
+                          : "border-line text-muted hover:border-line-2",
+                      )}
                     >
-                      <Pencil size={13} /> Edit script
-                    </Button>
-                  </div>
-                  <ScriptBeats segments={segs!} compact />
+                      {d}s
+                    </button>
+                  ))}
                 </div>
-              );
-            }
-            return (
-              <div>
-                {canOrganize && (
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <span className="text-[12px] font-semibold uppercase tracking-wider text-faint">
-                      Script
-                    </span>
-                    <Button
-                      variant="soft"
-                      size="sm"
-                      className="ml-auto gap-1.5"
-                      onClick={() => setEditScript(false)}
-                    >
-                      <Rows3 size={13} /> Organized view
-                    </Button>
-                  </div>
-                )}
-                <div className="relative">
-                  <textarea
-                    ref={promptRef}
-                    value={prompt}
-                    onChange={(e) => {
-                      setPrompt(e.target.value);
-                      const upToCaret = e.target.value.slice(0, e.target.selectionStart ?? 0);
-                      const m = upToCaret.match(/#([A-Za-z0-9]*)$/);
-                      setTagQuery(m ? m[1] : null);
-                    }}
-                    onBlur={() => setTimeout(() => setTagQuery(null), 200)}
-                    rows={Math.min(16, Math.max(4, Math.ceil(prompt.length / 80)))}
-                    placeholder={purpose.placeholder}
-                    className="w-full resize-none rounded-xl border border-line bg-surface-2 p-3.5 text-base leading-relaxed text-fg placeholder:text-faint focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-[15px]"
-                  />
-            {tagQuery !== null && (
-              <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-line bg-surface p-1.5 shadow-[0_16px_40px_-16px_rgba(16,18,27,0.3)]">
-                {taggedMedia.length === 0 ? (
-                  <p className="px-2 py-2 text-[12.5px] text-faint">
-                    Add media below first — each becomes a tag like <b>#I1</b>, <b>#V1</b>, <b>#A1</b> you can
-                    reference here.
-                  </p>
-                ) : (
-                  taggedMedia
-                    .filter(
-                      (t) =>
-                        t.tag.toLowerCase().startsWith(tagQuery.toLowerCase()) ||
-                        t.asset.name.toLowerCase().includes(tagQuery.toLowerCase()),
-                    )
-                    .map((t) => (
-                      <button
-                        key={t.tag}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          const ta = promptRef.current;
-                          const caret = ta?.selectionStart ?? prompt.length;
-                          const before = prompt.slice(0, caret).replace(/#[A-Za-z0-9]*$/, `#${t.tag} `);
-                          const after = prompt.slice(caret);
-                          setPrompt(before + after);
-                          setTagQuery(null);
-                          requestAnimationFrame(() => {
-                            ta?.focus();
-                            ta?.setSelectionRange(before.length, before.length);
-                          });
-                        }}
-                        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-surface-2"
-                      >
-                        <span className="w-8 shrink-0 rounded-md bg-accent-soft px-1.5 py-0.5 text-center text-[11px] font-bold text-accent-2">
-                          {t.tag}
-                        </span>
-                        <AssetThumb a={t.asset} className="h-7 w-7 shrink-0 rounded-md" />
-                        <span className="truncate text-[13px] text-fg">{t.asset.name}</span>
-                        <span className="ml-auto shrink-0 text-[11px] text-faint">{t.expand}</span>
-                      </button>
-                    ))
-                )}
-              </div>
-            )}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* The Director — any language in, pro English prompt out */}
-          <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            <Button
-              variant="soft"
-              size="sm"
-              disabled={directing || !prompt.trim()}
-              onClick={onDirect}
-              className="gap-1.5"
-            >
-              {directing ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" /> Improving…
-                </>
-              ) : (
-                <>
-                  <Wand2 size={14} /> Improve prompt
-                </>
               )}
-            </Button>
-            {draftBackup && draftBackup !== prompt && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1"
-                onClick={() => {
-                  setPrompt(draftBackup);
-                  setDraftBackup(null);
-                }}
-              >
-                <Undo2 size={13} /> Undo
-              </Button>
-            )}
-          </div>
-          {directorError && <p className="mt-1.5 text-xs text-danger">{directorError}</p>}
-
-          {/* Blank page? The purpose's example prompts are one tap away. */}
-          {!prompt.trim() && purpose.ideas.length > 0 && (
-            <div className="mt-3">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-faint">Try one of these</span>
-              <div className="mt-1.5 flex flex-col gap-1.5">
-                {purpose.ideas.slice(0, 2).map((idea) => (
-                  <button
-                    key={idea}
-                    onClick={() => setPrompt(idea)}
-                    className="rounded-xl border border-dashed border-line-2 px-3 py-2 text-left text-[12.5px] leading-relaxed text-muted transition-colors hover:border-accent/50 hover:text-fg"
-                  >
-                    “{idea}”
-                  </button>
-                ))}
-              </div>
             </div>
+            <div className="mt-3 flex justify-end">
+              <Button size="sm" variant="soft" onClick={() => setFormatLocked(true)}>
+                <Lock size={13} /> Lock format
+              </Button>
+            </div>
+            </>
           )}
-          </div>
+
 
           {/* Cast & assets */}
           <SectionTitle title="Cast & assets" sub="Add characters, products and media" />
@@ -1393,6 +1205,222 @@ export function MakeView({ mode }: { mode?: Modality }) {
             )}
           </div>
 
+
+          <SectionTitle title="Describe" sub="What's the shot?" />
+          <div>
+          {/* Provenance: this session is producing a shot from the production. */}
+          {planIdea && (
+            <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <Lightbulb size={14} className="shrink-0 text-accent-2" />
+                <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
+                  {shotNumber > 0 && <span className="font-bold">Shot {shotNumber}</span>}
+                  {planOfRef?.title || planOfRef?.brief ? (
+                    <>
+                      {" "}of <span className="font-semibold">{planOfRef.title || planOfRef.brief}</span>
+                    </>
+                  ) : null}
+                  {" — "}
+                  {planIdea.title}
+                </span>
+                <button
+                  onClick={() => setPlanRef(null)}
+                  className="shrink-0 text-[12px] font-medium text-faint hover:text-fg"
+                  title="Detach from the plan"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="mt-1.5 flex items-center gap-3 pl-6">
+                <Link
+                  href="/app"
+                  className="text-[12px] font-semibold text-accent-2 hover:underline"
+                >
+                  ← Back to the plan to fix it
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Provenance: this shot is generated from an attached storyboard. */}
+          {activeStoryboard && (
+            <div className="mb-3 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <LayoutGrid size={14} className="shrink-0 text-accent-2" />
+                <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
+                  <span className="font-bold">Storyboard</span> —{" "}
+                  <span className="font-semibold">{activeStoryboard.name}</span>: the sheet rides as an image
+                  reference and its story prompt is included in the script.
+                </span>
+                <button
+                  onClick={() => attachStoryboard(activeStoryboard)}
+                  className="shrink-0 text-[12px] font-medium text-faint hover:text-fg"
+                  title="Detach the storyboard"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Script — organized beat view when it has a timeline; textarea to edit. */}
+          {(() => {
+            const segs = planSegments(prompt);
+            const canOrganize = !!segs && segs.length > 1;
+            if (canOrganize && !editScript) {
+              return (
+                <div>
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className="text-[12px] font-semibold uppercase tracking-wider text-faint">
+                      Script
+                    </span>
+                    <span className="text-[11px] text-faint">{segs!.length} beats</span>
+                    <Button
+                      variant="soft"
+                      size="sm"
+                      className="ml-auto gap-1.5"
+                      onClick={() => setEditScript(true)}
+                    >
+                      <Pencil size={13} /> Edit script
+                    </Button>
+                  </div>
+                  <ScriptBeats segments={segs!} compact />
+                </div>
+              );
+            }
+            return (
+              <div>
+                {canOrganize && (
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className="text-[12px] font-semibold uppercase tracking-wider text-faint">
+                      Script
+                    </span>
+                    <Button
+                      variant="soft"
+                      size="sm"
+                      className="ml-auto gap-1.5"
+                      onClick={() => setEditScript(false)}
+                    >
+                      <Rows3 size={13} /> Organized view
+                    </Button>
+                  </div>
+                )}
+                <div className="relative">
+                  <textarea
+                    ref={promptRef}
+                    value={prompt}
+                    onChange={(e) => {
+                      setPrompt(e.target.value);
+                      const upToCaret = e.target.value.slice(0, e.target.selectionStart ?? 0);
+                      const m = upToCaret.match(/#([A-Za-z0-9]*)$/);
+                      setTagQuery(m ? m[1] : null);
+                    }}
+                    onBlur={() => setTimeout(() => setTagQuery(null), 200)}
+                    rows={Math.min(16, Math.max(4, Math.ceil(prompt.length / 80)))}
+                    placeholder={purpose.placeholder}
+                    className="w-full resize-none rounded-xl border border-line bg-surface-2 p-3.5 text-base leading-relaxed text-fg placeholder:text-faint focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-[15px]"
+                  />
+            {tagQuery !== null && (
+              <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-line bg-surface p-1.5 shadow-[0_16px_40px_-16px_rgba(16,18,27,0.3)]">
+                {taggedMedia.length === 0 ? (
+                  <p className="px-2 py-2 text-[12.5px] text-faint">
+                    Add media below first — each becomes a tag like <b>#I1</b>, <b>#V1</b>, <b>#A1</b> you can
+                    reference here.
+                  </p>
+                ) : (
+                  taggedMedia
+                    .filter(
+                      (t) =>
+                        t.tag.toLowerCase().startsWith(tagQuery.toLowerCase()) ||
+                        t.asset.name.toLowerCase().includes(tagQuery.toLowerCase()),
+                    )
+                    .map((t) => (
+                      <button
+                        key={t.tag}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const ta = promptRef.current;
+                          const caret = ta?.selectionStart ?? prompt.length;
+                          const before = prompt.slice(0, caret).replace(/#[A-Za-z0-9]*$/, `#${t.tag} `);
+                          const after = prompt.slice(caret);
+                          setPrompt(before + after);
+                          setTagQuery(null);
+                          requestAnimationFrame(() => {
+                            ta?.focus();
+                            ta?.setSelectionRange(before.length, before.length);
+                          });
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-surface-2"
+                      >
+                        <span className="w-8 shrink-0 rounded-md bg-accent-soft px-1.5 py-0.5 text-center text-[11px] font-bold text-accent-2">
+                          {t.tag}
+                        </span>
+                        <AssetThumb a={t.asset} className="h-7 w-7 shrink-0 rounded-md" />
+                        <span className="truncate text-[13px] text-fg">{t.asset.name}</span>
+                        <span className="ml-auto shrink-0 text-[11px] text-faint">{t.expand}</span>
+                      </button>
+                    ))
+                )}
+              </div>
+            )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* The Director — any language in, pro English prompt out */}
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <Button
+              variant="soft"
+              size="sm"
+              disabled={directing || !prompt.trim()}
+              onClick={onDirect}
+              className="gap-1.5"
+            >
+              {directing ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Improving…
+                </>
+              ) : (
+                <>
+                  <Wand2 size={14} /> Improve prompt
+                </>
+              )}
+            </Button>
+            {draftBackup && draftBackup !== prompt && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1"
+                onClick={() => {
+                  setPrompt(draftBackup);
+                  setDraftBackup(null);
+                }}
+              >
+                <Undo2 size={13} /> Undo
+              </Button>
+            )}
+          </div>
+          {directorError && <p className="mt-1.5 text-xs text-danger">{directorError}</p>}
+
+          {/* Blank page? The purpose's example prompts are one tap away. */}
+          {!prompt.trim() && purpose.ideas.length > 0 && (
+            <div className="mt-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-faint">Try one of these</span>
+              <div className="mt-1.5 flex flex-col gap-1.5">
+                {purpose.ideas.slice(0, 2).map((idea) => (
+                  <button
+                    key={idea}
+                    onClick={() => setPrompt(idea)}
+                    className="rounded-xl border border-dashed border-line-2 px-3 py-2 text-left text-[12.5px] leading-relaxed text-muted transition-colors hover:border-accent/50 hover:text-fg"
+                  >
+                    “{idea}”
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          </div>
 
           {/* Generate */}
           <div className="mt-6 border-t border-line pt-5">
