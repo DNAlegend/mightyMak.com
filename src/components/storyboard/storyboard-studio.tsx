@@ -29,7 +29,7 @@ import {
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
 import { getModel, priceFor } from "@/lib/models";
-import { storyboardDurationSec } from "@/lib/storyboard-library";
+import { storyboardDurationSec } from "@/lib/storyboard";
 import type { Asset } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Badge, Button, Card, Progress, Segmented } from "@/components/ui";

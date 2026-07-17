@@ -32,7 +32,7 @@ import { useStore } from "@/lib/store";
 import { cloudConfigured } from "@/lib/supabase";
 import { getModel, listModels, priceFor, videoRate, DEFAULT_MODEL_ID } from "@/lib/models";
 import { ASSET_CLASSES, CLASS_BY_KEY, composeFromAssets } from "@/lib/catalog";
-import { storyboardDurationSec } from "@/lib/storyboard-library";
+import { storyboardDurationSec } from "@/lib/storyboard";
 import { PURPOSES, PURPOSE_BY_ID, DEFAULT_PURPOSE_ID } from "@/lib/purposes";
 import {
   DURATIONS,
