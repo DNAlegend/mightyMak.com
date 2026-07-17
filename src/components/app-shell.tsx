@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, ArrowRight, Clapperboard, Film, FolderOpen, LayoutGrid, Lightbulb, LogOut, Loader2, Mail, Package, Plus, Coins, Scissors, UserCircle, UserRound, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clapperboard, Film, FolderOpen, LayoutGrid, LogOut, Loader2, Mail, Package, Plus, Coins, UserCircle, UserRound, Sparkles } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
 import { TOPUPS, PLAN_ITEMS, PLAN_ITEMS_YEARLY, billingItem, planVariant, type BillingItem } from "@/lib/billing";
@@ -16,15 +16,13 @@ import { AccountModal } from "@/components/account/account-modal";
 import { LogoWordmark } from "@/components/logo";
 
 // The nav splits into the production pipeline and the library of what you own.
-// `short` is the label used on the compact mobile bar (8 items must fit).
-const NAV_GROUPS: { label: string; items: { href: string; label: string; short?: string; icon: typeof Lightbulb }[] }[] = [
+// `short` is the label used on the compact mobile bar (6 items must fit).
+const NAV_GROUPS: { label: string; items: { href: string; label: string; short?: string; icon: typeof Clapperboard }[] }[] = [
   {
     label: "Production",
     items: [
-      { href: "/app", label: "Plan", icon: Lightbulb },
+      { href: "/app", label: "Make", icon: Clapperboard },
       { href: "/app/storyboard", label: "Storyboard", short: "Board", icon: LayoutGrid },
-      { href: "/app/make", label: "Make", icon: Clapperboard },
-      { href: "/app/post", label: "Post", icon: Scissors },
       { href: "/app/videos", label: "My Videos", short: "Videos", icon: Film },
     ],
   },
@@ -40,9 +38,11 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; short?:
 // Flat list for the mobile bar (can't show group headers) — one source of truth.
 const NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 
-/** Make is the index route, so it matches exactly; the rest match by prefix. */
+/** Make is the index route — it also owns /app/make; the rest match by prefix. */
 const isActive = (href: string, pathname: string) =>
-  href === "/app" ? pathname === "/app" : pathname.startsWith(href);
+  href === "/app"
+    ? pathname === "/app" || pathname.startsWith("/app/make")
+    : pathname.startsWith(href);
 
 function Brand() {
   return (
