@@ -369,6 +369,27 @@ export function adjustCreditsRemote(delta: number, onBalance?: (balance: number)
  * Upload a data-URL file to the assets bucket under the user's folder and
  * return its public URL, or null on failure / when signed out.
  */
+/**
+ * Upload a raw File/Blob straight to Storage — no base64 detour, so big
+ * videos never squat in memory or localStorage. Returns the public URL.
+ */
+export async function uploadFile(assetId: string, file: Blob): Promise<string | null> {
+  if (!supabase || !activeUserId) return null;
+  try {
+    const ext = file.type.split("/")[1]?.split("+")[0] || "bin";
+    const path = `${activeUserId}/${assetId}.${ext}`;
+    const { error } = await supabase.storage.from("assets").upload(path, file, {
+      contentType: file.type,
+      upsert: true,
+    });
+    if (error) throw error;
+    return supabase.storage.from("assets").getPublicUrl(path).data.publicUrl;
+  } catch (e) {
+    warn("uploadFile", e);
+    return null;
+  }
+}
+
 export async function uploadDataUrl(assetId: string, dataUrl: string): Promise<string | null> {
   if (!supabase || !activeUserId) return null;
   try {

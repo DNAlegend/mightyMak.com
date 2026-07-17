@@ -18,13 +18,19 @@ import {
   X,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { cloudConfigured } from "@/lib/supabase";
+import { uploadFile } from "@/lib/cloud";
 import type { Asset, AssetKind, Category } from "@/lib/types";
 import { isComposite } from "@/lib/types";
-import { cn, timeAgo } from "@/lib/utils";
+import { cn, timeAgo, uid } from "@/lib/utils";
 import { Button, EmptyState, Modal, TextInput } from "@/components/ui";
 import { AssetThumb } from "@/components/shared";
 
-const MAX_BYTES = 8 * 1024 * 1024; // keep within browser storage for the demo
+// Signed-in uploads stream straight to cloud Storage — the cap is Storage's
+// own per-file limit (50 MB on the current plan). The demo (no account) keeps
+// files in browser localStorage, which genuinely can't hold more than ~8 MB.
+const MAX_BYTES_CLOUD = 50 * 1024 * 1024;
+const MAX_BYTES_LOCAL = 8 * 1024 * 1024;
 
 const kindIcon: Record<AssetKind, typeof ImageIcon> = {
   image: ImageIcon,
@@ -58,7 +64,7 @@ const EMPTY_HINTS: Record<AssetKind | "all", { title: string; desc: string }> = 
   },
   video: {
     title: "No videos yet",
-    desc: "Add reference clips (MP4 · MOV, under 8 MB) — the model imitates their motion. Videos you generate in Make can be saved here too.",
+    desc: "Add reference clips (MP4 · MOV, up to 50 MB signed in) — the model imitates their motion. Videos you generate in the Studio can be saved here too.",
   },
   image: {
     title: "No pictures yet",
@@ -102,6 +108,9 @@ export function AssetsView() {
   const [sel, setSel] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [warn, setWarn] = useState<string | null>(null);
+  /** Files are streaming to Storage — big videos take a moment. */
+  const [busy, setBusy] = useState(false);
+  const cloudUser = useStore((s) => s.cloudUser);
   const [newPromptOpen, setNewPromptOpen] = useState(false);
   const [collectFor, setCollectFor] = useState<string[] | null>(null); // asset ids picking a collection
   const [actionAsset, setActionAsset] = useState<Asset | null>(null);
@@ -143,32 +152,56 @@ export function AssetsView() {
   }
 
   async function ingest(files: FileList | File[]) {
+    // Signed-in accounts stream files straight to Storage (big videos OK);
+    // the local demo keeps the small data-URL path so localStorage survives.
+    const cloud = cloudConfigured && !!cloudUser;
+    const maxBytes = cloud ? MAX_BYTES_CLOUD : MAX_BYTES_LOCAL;
     let skipped = 0;
-    for (const file of Array.from(files)) {
-      const kind: AssetKind | null = file.type.startsWith("image/")
-        ? "image"
-        : file.type.startsWith("video/")
-          ? "video"
-          : file.type.startsWith("audio/")
-            ? "audio"
-            : null;
-      if (!kind || file.size > MAX_BYTES) {
-        skipped++;
-        continue;
+    let failed = 0;
+    setBusy(true);
+    try {
+      for (const file of Array.from(files)) {
+        const kind: AssetKind | null = file.type.startsWith("image/")
+          ? "image"
+          : file.type.startsWith("video/")
+            ? "video"
+            : file.type.startsWith("audio/")
+              ? "audio"
+              : null;
+        if (!kind || file.size > maxBytes) {
+          skipped++;
+          continue;
+        }
+        let url: string;
+        if (cloud) {
+          const publicUrl = await uploadFile(uid("up"), file);
+          if (!publicUrl) {
+            failed++;
+            continue;
+          }
+          url = publicUrl;
+        } else {
+          url = await readAsDataURL(file);
+        }
+        addAsset({
+          name: file.name.replace(/\.[^.]+$/, ""),
+          kind,
+          url,
+          posterUrl: kind === "image" ? url : undefined,
+          categoryId: openCol, // uploading inside a collection files it there
+          source: "upload",
+        });
       }
-      const url = await readAsDataURL(file);
-      addAsset({
-        name: file.name.replace(/\.[^.]+$/, ""),
-        kind,
-        url,
-        posterUrl: kind === "image" ? url : undefined,
-        categoryId: openCol, // uploading inside a collection files it there
-        source: "upload",
-      });
+    } finally {
+      setBusy(false);
     }
+    const notes: string[] = [];
     if (skipped > 0)
-      setWarn(`${skipped} file${skipped > 1 ? "s were" : " was"} skipped (must be an image, video, or audio under 8 MB).`);
-    else setWarn(null);
+      notes.push(
+        `${skipped} file${skipped > 1 ? "s were" : " was"} skipped (must be an image, video, or audio under ${cloud ? 50 : 8} MB${cloud ? "" : " — sign in for up to 50 MB"}).`,
+      );
+    if (failed > 0) notes.push(`${failed} upload${failed > 1 ? "s" : ""} failed — try again.`);
+    setWarn(notes.length ? notes.join(" ") : null);
   }
 
   function onDrop(e: DragEvent) {
@@ -315,6 +348,11 @@ export function AssetsView() {
           dragOver && "outline-2 outline-dashed outline-accent/60",
         )}
       >
+        {busy && (
+          <div className="mb-3 rounded-xl border border-line bg-surface-2 px-3 py-2 text-xs text-muted">
+            Uploading… big videos can take a moment.
+          </div>
+        )}
         {warn && (
           <div className="mb-3 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
             {warn}
