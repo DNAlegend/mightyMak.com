@@ -815,23 +815,8 @@ export function MakeView({ mode }: { mode?: Modality }) {
             <h2 className="text-[15px] font-bold tracking-tight text-fg">Model &amp; format</h2>
             <p className="mt-0.5 text-[12.5px] text-muted">The exact model, quality, aspect and length</p>
           </div>
-          {/* Once the format is chosen it locks into a one-line summary; Edit reopens it. */}
-          {formatLocked ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface-2 px-3.5 py-2.5">
-              <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium text-fg">
-                <span className="text-lg">{activeChoice.emoji}</span>
-                {activeChoice.label}
-                <Badge tone="neutral">{resolution}</Badge>
-                <Badge tone="neutral">{aspectRatio}</Badge>
-                {modality === "video" && <Badge tone="neutral">{durationSec}s</Badge>}
-                <Lock size={12} className="text-faint" />
-              </span>
-              <Button size="sm" variant="soft" onClick={() => setFormatLocked(false)}>
-                <Pencil size={13} /> Edit
-              </Button>
-            </div>
-          ) : (
-            <>
+          {/* Locking greys the format out (Edit reopens it) and wakes the rest of the page. */}
+          <div className={cn(formatLocked && "pointer-events-none opacity-50")}>
             {/* One card per flavor — picking it sets the model + its default quality. */}
             <div className="mb-3 grid grid-cols-3 gap-2">
               {MODEL_CHOICES.map((c) => {
@@ -952,15 +937,25 @@ export function MakeView({ mode }: { mode?: Modality }) {
                 </div>
               )}
             </div>
-            <div className="mt-3 flex justify-end">
-              <Button size="sm" variant="soft" onClick={() => setFormatLocked(true)}>
-                <Lock size={13} /> Lock format
-              </Button>
-            </div>
-            </>
-          )}
+          </div>
+          <div className="mt-3 flex items-center justify-end gap-3">
+            {!formatLocked && <span className="text-[11.5px] text-faint">Lock it in to continue</span>}
+            <Button size="sm" variant="soft" onClick={() => setFormatLocked((v) => !v)}>
+              {formatLocked ? (
+                <>
+                  <Pencil size={13} /> Edit format
+                </>
+              ) : (
+                <>
+                  <Lock size={13} /> Lock format
+                </>
+              )}
+            </Button>
+          </div>
 
 
+          {/* Everything after the format sleeps until the format is locked. */}
+          <div className={cn(!formatLocked && "pointer-events-none select-none opacity-40")}>
           {/* Cast & assets */}
           <SectionTitle title="Cast & assets" sub="Add characters, products and media" />
           <div>
@@ -1466,6 +1461,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
                 Sign in to render with the real VIBVID engine.
               </p>
             )}
+          </div>
           </div>
         </div>
       </Card>
