@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { cloudConfigured } from "@/lib/supabase";
-import { getModel, listModels, priceFor, videoRate, DEFAULT_MODEL_ID } from "@/lib/models";
+import { getModel, priceFor, videoRate, DEFAULT_MODEL_ID } from "@/lib/models";
 import { ASSET_CLASSES, CLASS_BY_KEY, composeFromAssets } from "@/lib/catalog";
 import { storyboardDurationSec } from "@/lib/storyboard";
 import { PURPOSE_BY_ID, DEFAULT_PURPOSE_ID } from "@/lib/purposes";
@@ -58,6 +58,38 @@ import {
 } from "@/components/shared";
 
 type Picks = Partial<Record<AssetClass, string>>;
+
+/**
+ * The three flavors of the engine — one card each, personality included.
+ * Mini and Pro are real models; 4K is Pro with the resolution cranked, so
+ * picking a card sets BOTH the model and the quality in one tap.
+ */
+const MODEL_CHOICES = [
+  {
+    key: "mini",
+    label: "Mini 2.0",
+    emoji: "🐇",
+    tagline: "Zippy little drafts — try ideas fast",
+    modelId: "seedance-2-mini",
+    resolution: "720p",
+  },
+  {
+    key: "pro",
+    label: "2.0 Pro",
+    emoji: "🎬",
+    tagline: "The cinematic one — crisp 1080p",
+    modelId: "seedance-2-pro",
+    resolution: "1080p",
+  },
+  {
+    key: "4k",
+    label: "2.0 4K",
+    emoji: "💎",
+    tagline: "Every pore, every pixel — max detail",
+    modelId: "seedance-2-pro",
+    resolution: "4K",
+  },
+] as const;
 
 /** Section heading on the one-page Studio — a divider with title + hint. */
 function SectionTitle({ title, sub }: { title: string; sub: string }) {
@@ -271,16 +303,11 @@ export function MakeView({ mode }: { mode?: Modality }) {
   // instead of quietly simulating (a sample clip reads as broken generation).
   const needsSignIn = cloudConfigured && !cloudUser;
 
-  // Resolution follows the model's ceiling whenever the model changes.
-  useEffect(() => {
-    setResolution(getModel(modelId).arkResolution ?? "720p");
-  }, [modelId]);
-
-  // Draft-first for small balances: the purpose presets default to Production
-  // (~90cr for 5s), which a low balance can't afford — the first click would
-  // be a disabled button. Once the balance is known, if it can't
-  // cover a single 5s render on the preset model, start them on Draft instead.
-  // Runs once per mount and never overrides a choice the user made themselves.
+  // Draft-first for small balances: the default is 2.0 Pro (~90cr for 5s),
+  // which a low balance can't afford — the first click would be a disabled
+  // button. Once the balance is known, if it can't cover a single 5s render
+  // on the preset model, start them on Mini instead. Runs once per mount and
+  // never overrides a choice the user made themselves.
   const autoDrafted = useRef(false);
   useEffect(() => {
     if (!hydrated || autoDrafted.current || modality !== "video") return;
@@ -289,6 +316,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
     const presetCost = priceFor(preset, { durationSec: 5 });
     if (credits < presetCost && preset.id !== "seedance-2-mini") {
       setModelId("seedance-2-mini");
+      setResolution("720p");
     }
   }, [hydrated, credits, modality, modelId]);
 
@@ -379,6 +407,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
     setPurposeId(id);
     setModality(p.modality);
     setModelId(p.modelId);
+    setResolution(getModel(p.modelId).arkResolution ?? "720p");
     setAspectRatio(p.aspectRatio);
     setDurationSec(p.durationSec);
   }
@@ -774,50 +803,42 @@ export function MakeView({ mode }: { mode?: Modality }) {
             <h2 className="text-[15px] font-bold tracking-tight text-fg">Model &amp; format</h2>
             <p className="mt-0.5 text-[12.5px] text-muted">The exact model, quality, aspect and length</p>
           </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-            {/* Draft vs Production — the model IS the price class */}
-            <div className="flex items-center gap-1.5">
-              <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-faint">Model</span>
-              {listModels({ modality: "video", enabledOnly: true }).map((m) => (
+          {/* One card per flavor — picking it sets model AND quality. */}
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            {MODEL_CHOICES.map((c) => {
+              const m = getModel(c.modelId);
+              const on = modelId === c.modelId && resolution === c.resolution;
+              return (
                 <button
-                  key={m.id}
-                  onClick={() => setModelId(m.id)}
+                  key={c.key}
+                  onClick={() => {
+                    setModelId(c.modelId);
+                    setResolution(c.resolution);
+                  }}
                   title={m.blurb}
                   className={cn(
-                    "rounded-lg border px-2.5 py-1 text-[12px] font-medium transition-colors",
-                    modelId === m.id
-                      ? "border-accent bg-accent-soft text-fg"
-                      : "border-line text-muted hover:border-line-2",
+                    "rounded-xl border p-3 text-left transition-all",
+                    on
+                      ? "border-accent bg-accent-soft shadow-sm"
+                      : "border-line hover:-translate-y-0.5 hover:border-line-2",
                   )}
                 >
-                  {m.glyph} {m.name}
-                </button>
-              ))}
-            </div>
-            {/* Quality is part of the price — the rate is on each chip.
-                flex-wrap: with 4 resolutions (Production) this row is wider than
-                a phone screen, and without wrapping the 4K chip gets clipped. */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-faint">Quality</span>
-              {(model.resolutions ?? [model.arkResolution ?? "720p"]).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setResolution(r)}
-                  title={`${videoRate(model, r)} credits / second`}
-                  className={cn(
-                    "rounded-lg border px-2.5 py-1 text-[12px] font-medium transition-colors",
-                    resolution === r
-                      ? "border-accent bg-accent-soft text-fg"
-                      : "border-line text-muted hover:border-line-2",
-                  )}
-                >
-                  {r}
-                  <span className={cn("ml-1 text-[10px]", resolution === r ? "text-accent-2" : "text-faint")}>
-                    {videoRate(model, r)}c/s
+                  <span className="text-xl">{c.emoji}</span>
+                  <span className="mt-0.5 block text-[13px] font-bold text-fg">{c.label}</span>
+                  <span className="block min-h-[2.6em] text-[11px] leading-snug text-muted">{c.tagline}</span>
+                  <span
+                    className={cn(
+                      "mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-semibold",
+                      on ? "bg-accent text-white" : "bg-surface-2 text-faint",
+                    )}
+                  >
+                    {c.resolution} · {videoRate(m, c.resolution)} cr/s
                   </span>
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <div className="flex items-center gap-1.5">
               <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-faint">Aspect</span>
               {(
