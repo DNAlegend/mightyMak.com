@@ -1,23 +1,29 @@
 "use client";
 
-// Storyboard — plan a whole video as ONE image. The Storyboard Artist
-// (Claude) writes two linked prompts from a brief: the STORY FLOW (how the
-// video plays, panel by panel, start to finish) and a board IMAGE prompt
-// that renders every panel as a single grid sheet on Seedream. Both save to
-// the library as one storyboard asset — the sheet is the picture, the flow
-// rides along as its prompt — and "Use in Make" feeds the sheet in as a
-// reference image with the flow prefilled as the script.
+// Storyboard — board a whole PRODUCT COMMERCIAL as one image. Give it the
+// hero product (a saved Product, or describe one) plus the commercial idea
+// and a video length; the Storyboard Artist (Claude) writes two linked
+// prompts — the SEEDANCE PROMPT (scene by scene, time ranges summing to the
+// length) and a board IMAGE prompt that renders all nine key frames as a
+// single 3×3 sheet on Seedream, steered by the product's reference photos.
+// A finished board saves itself automatically, and "Use in Make" feeds the
+// sheet in as a reference with the prompt and length preloaded. The
+// Storyboard Library below is a browsable set of worked examples — sheet,
+// prompt and video result — anyone can load and generate the same.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  Bookmark,
   Check,
   ChevronDown,
+  Clock,
   Coins,
+  Copy,
   LayoutGrid,
+  Library,
   Loader2,
+  Package,
   PenLine,
   Sparkles,
   Trash2,
@@ -25,27 +31,23 @@ import {
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
 import { getModel, priceFor } from "@/lib/models";
-import type { Asset, AspectRatio } from "@/lib/types";
+import { STORYBOARD_LIBRARY, storyboardDurationSec, type StoryboardExample } from "@/lib/storyboard-library";
+import type { Asset } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { Badge, Button, Card, Progress, Segmented } from "@/components/ui";
 
-type StyleKey = "cinematic" | "photoreal" | "anime" | "sketch";
-
-const STYLES: Record<StyleKey, { label: string; suffix: string }> = {
-  cinematic: { label: "Cinematic", suffix: "cinematic film stills, dramatic lighting, rich color grade" },
-  photoreal: { label: "Photoreal", suffix: "photorealistic frames, natural light, documentary realism" },
-  anime: { label: "Anime", suffix: "high-quality anime keyframes, clean lineart, cel shading" },
-  sketch: { label: "Sketch", suffix: "hand-drawn pencil storyboard sketches, loose expressive linework, grey shading" },
-};
-
-/** Panel counts the board offers, with the sheet ratio each grid fits best. */
-const PANEL_OPTIONS: Record<number, { grid: string; aspectRatio: AspectRatio }> = {
-  4: { grid: "2×2", aspectRatio: "1:1" },
-  6: { grid: "3×2", aspectRatio: "16:9" },
-  9: { grid: "3×3", aspectRatio: "1:1" },
-};
+const DURATIONS = [5, 10, 15] as const;
 
 const textareaCls =
   "w-full resize-none rounded-xl border border-line bg-surface-2 p-3 text-base leading-relaxed text-fg placeholder:text-faint focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm";
+
+/** Public https photos of a product composite — the Seedream identity refs. */
+function productPhotoUrls(p: Asset): string[] {
+  const urls = (p.parts ?? [])
+    .filter((x) => x.kind === "image" && /^https:\/\//i.test(x.url))
+    .map((x) => x.url);
+  return urls.slice(0, 5);
+}
 
 export function StoryboardStudio() {
   const router = useRouter();
@@ -63,9 +65,9 @@ export function StoryboardStudio() {
   const subscribed = useStore((s) => s.subscribed);
   const setAuthOpen = useStore((s) => s.setAuthOpen);
 
+  const [productId, setProductId] = useState<string | null>(null);
   const [brief, setBrief] = useState("");
-  const [panels, setPanels] = useState<number>(9);
-  const [style, setStyle] = useState<StyleKey>("cinematic");
+  const [durationSec, setDurationSec] = useState<number>(10);
   const [title, setTitle] = useState("");
   const [flow, setFlow] = useState("");
   const [imagePrompt, setImagePrompt] = useState("");
@@ -73,27 +75,35 @@ export function StoryboardStudio() {
   const [writing, setWriting] = useState(false);
   const [writeError, setWriteError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  /** Job ids already auto-saved — a board saves itself exactly once. */
+  const savedJobs = useRef<Set<string>>(new Set());
+  const [savedAssetId, setSavedAssetId] = useState<string | null>(null);
+  const [openExample, setOpenExample] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const boards = useMemo(() => assets.filter((a) => a.class === "storyboard"), [assets]);
+  const products = useMemo(
+    () => assets.filter((a) => a.class === "product" && (a.parts?.length ?? 0) > 0),
+    [assets],
+  );
+  const product = productId ? products.find((p) => p.id === productId) ?? null : null;
   const needsSignIn = cloudConfigured && !cloudUser;
   // Unsubscribed: keep buttons clickable so they open the subscribe paywall.
   const locked = cloudConfigured && subscribed === false;
 
   // The sheet renders on the 2K image model — nine legible panels need the detail.
   const model = getModel("seedream-45");
-  const cost = priceFor(model, { count: 1 });
+  const cost = priceFor(model, { count: 1, hasRefs: !!product });
   const canAfford = credits >= cost;
-  const aspectRatio = PANEL_OPTIONS[panels].aspectRatio;
 
   const job = jobId ? videos.find((v) => v.id === jobId) ?? null : null;
   const rendering = job?.status === "rendering";
   const boardUrl = job?.status === "succeeded" ? job.posterUrl : undefined;
 
-  /** The Storyboard Artist: brief → { title, flow, imagePrompt }. */
+  /** The Storyboard Artist: product + idea + length → { title, flow, imagePrompt }. */
   async function onWrite() {
     const idea = brief.trim();
-    if (!idea || writing) return;
+    if ((!idea && !product) || writing) return;
     if (needsSignIn) {
       setAuthOpen(true);
       return;
@@ -108,15 +118,21 @@ export function StoryboardStudio() {
       const res = await fetch("/api/storyboard", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ brief: idea, panels, style: STYLES[style].suffix }),
+        body: JSON.stringify({
+          brief: idea || `A premium commercial for ${product!.name}.`,
+          durationSec,
+          product: product
+            ? { name: product.name, look: product.promptFragment ?? "" }
+            : null,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.flow) throw new Error(data.error ?? "The storyboard writer is unavailable");
-      setTitle((data.title as string) || idea.slice(0, 40));
+      setTitle((data.title as string) || product?.name || idea.slice(0, 40));
       setFlow(data.flow as string);
       setImagePrompt(data.imagePrompt as string);
       setJobId(null);
-      setSaved(false);
+      setSavedAssetId(null);
     } catch (e) {
       setWriteError(e instanceof Error ? e.message : "The storyboard writer is unavailable");
     } finally {
@@ -127,7 +143,7 @@ export function StoryboardStudio() {
   /** Fallback sheet prompt when the creator wrote/edited the flow by hand. */
   const composedImagePrompt =
     imagePrompt.trim() ||
-    `A professional film storyboard sheet: a ${PANEL_OPTIONS[panels].grid} grid of ${panels} panels on a clean white background with thin gutters; each cell carries exactly ONE small grey numeral in its bottom-left corner, numbered in reading order, and no other text anywhere. The panels tell this story in order, one beat per panel, the same protagonist identical in every panel — same face, hair and wardrobe: ${flow.trim()} Rendered as ${STYLES[style].suffix}.`;
+    `A professional product-storyboard sheet: a 3×3 grid of nine vertical frames on a clean white background with thin gutters; each cell carries exactly ONE small grey numeral in its bottom-left corner, numbered in reading order, and no other text anywhere. The nine panels are the key frames of this commercial in story order, the exact same product identical in every panel: ${flow.trim()} Ultra realistic product photography, studio lighting.`;
 
   function onGenerate() {
     if (rendering) return;
@@ -140,97 +156,148 @@ export function StoryboardStudio() {
       return;
     }
     if (!flow.trim() || !canAfford) return;
-    setSaved(false);
+    setSavedAssetId(null);
+    const refs = product ? productPhotoUrls(product) : [];
     setJobId(
       generate({
         prompt: composedImagePrompt,
         tier: "standard",
         durationSec: 5,
-        aspectRatio,
+        aspectRatio: "1:1",
         audio: false,
         modelId: model.id,
         modality: "image",
         direction: title.trim() || brief.trim(),
+        refImageUrls: refs.length ? refs : undefined,
       }),
     );
   }
 
-  /** One storyboard = one asset: the sheet is the picture, the flow its prompt. */
-  function onSave() {
-    if (!boardUrl) return;
-    const name = title.trim() || brief.trim().slice(0, 40) || "New storyboard";
+  // A finished board saves itself: one storyboard asset carrying the sheet,
+  // the Seedance prompt and the video length — nothing for the creator to do.
+  useEffect(() => {
+    if (!job || job.status !== "succeeded" || !job.posterUrl) return;
+    if (savedJobs.current.has(job.id)) return;
+    savedJobs.current.add(job.id);
+    const name = title.trim() || product?.name || brief.trim().slice(0, 40) || "New storyboard";
     const col = addCategory(`${name} — storyboard`);
-    addAsset({
+    const asset = addAsset({
       name,
       kind: "image",
-      url: boardUrl,
-      posterUrl: boardUrl,
+      url: job.posterUrl,
+      posterUrl: job.posterUrl,
       categoryId: col.id,
       source: "generation",
       class: "storyboard",
-      // The flow rides along as the asset's prompt — Make and the Director read it.
+      // The Seedance prompt rides along as the asset's prompt.
       promptFragment: flow.trim(),
-      parts: [{ role: "primary", kind: "image", url: boardUrl, posterUrl: boardUrl, label: "Storyboard sheet" }],
+      parts: [
+        { role: "primary", kind: "image", url: job.posterUrl, posterUrl: job.posterUrl, label: "Storyboard sheet" },
+        // The video length, machine-readable for Make.
+        { role: "reference", kind: "prompt", url: String(durationSec), label: `Video length: ${durationSec}s` },
+      ],
     } as Omit<Asset, "id" | "createdAt">);
-    setSaved(true);
-  }
+    setSavedAssetId(asset.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job?.status, job?.posterUrl]);
 
-  /** Shoot it: the sheet becomes a reference image, the flow the script. */
+  /** Shoot it: the sheet becomes a reference, the prompt the script, the length the clip. */
   function useInMake(board: Asset) {
     setDraftElements([board.id]);
     if (board.promptFragment) setDraftDirection(board.promptFragment);
     router.push("/app/make");
   }
 
-  const canWrite = hydrated && brief.trim().length > 3;
+  /** Load a library example: copy it into the creator's boards, then into Make. */
+  function useExample(ex: StoryboardExample) {
+    const col = addCategory(`${ex.title} — storyboard`);
+    const asset = addAsset({
+      name: ex.title,
+      kind: "image",
+      url: ex.sheetUrl,
+      posterUrl: ex.sheetUrl,
+      categoryId: col.id,
+      source: "generation",
+      class: "storyboard",
+      promptFragment: ex.prompt,
+      parts: [
+        { role: "primary", kind: "image", url: ex.sheetUrl, posterUrl: ex.sheetUrl, label: "Storyboard sheet" },
+        { role: "reference", kind: "prompt", url: String(ex.durationSec), label: `Video length: ${ex.durationSec}s` },
+      ],
+    } as Omit<Asset, "id" | "createdAt">);
+    useInMake(asset);
+  }
+
+  async function copyPrompt(ex: StoryboardExample) {
+    try {
+      await navigator.clipboard.writeText(ex.prompt);
+      setCopiedId(ex.id);
+      setTimeout(() => setCopiedId(null), 1800);
+    } catch {
+      /* clipboard unavailable — the prompt is visible to select manually */
+    }
+  }
+
+  const canWrite = hydrated && (brief.trim().length > 3 || !!product);
   const canGenerate = hydrated && flow.trim().length > 0 && canAfford;
+  const savedBoard = savedAssetId ? boards.find((b) => b.id === savedAssetId) ?? null : null;
 
   return (
     <div className="mx-auto max-w-5xl">
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Storyboard</h1>
         <p className="mt-1 text-sm text-muted">
-          Turn an idea into a one-image storyboard — every beat of the video in a single grid —
-          plus the detailed story-flow prompt that drives it. Save both, then feed them straight
-          into Make.
+          Board a product commercial as one image — nine key frames in a grid — plus the detailed
+          Seedance prompt that shoots it, sized to your video length. Boards save themselves and
+          feed straight into Make.
         </p>
       </header>
 
       {/* ------------------------- Saved storyboards ------------------------- */}
       {boards.length > 0 && (
         <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {boards.map((b) => (
-            <Card key={b.id} className="group overflow-hidden">
-              <div className="relative aspect-video bg-surface-2">
-                {b.posterUrl || b.url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={b.posterUrl ?? b.url} alt={b.name} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-faint">
-                    <LayoutGrid size={26} />
-                  </div>
-                )}
-                <button
-                  onClick={() => {
-                    if (confirm(`Delete the "${b.name}" storyboard?`)) removeAsset(b.id);
-                  }}
-                  className="absolute right-2 top-2 rounded-lg bg-black/55 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/75 group-hover:opacity-100"
-                  aria-label="Delete storyboard"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-              <div className="p-3">
-                <div className="truncate text-[13.5px] font-semibold">{b.name}</div>
-                {b.promptFragment && (
-                  <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-faint">{b.promptFragment}</p>
-                )}
-                <Button size="sm" variant="soft" className="mt-2 w-full" onClick={() => useInMake(b)}>
-                  <Sparkles size={13} /> Use in Make
-                </Button>
-              </div>
-            </Card>
-          ))}
+          {boards.map((b) => {
+            const dur = storyboardDurationSec(b);
+            return (
+              <Card key={b.id} className="group overflow-hidden">
+                <div className="relative aspect-square bg-surface-2">
+                  {b.posterUrl || b.url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={b.posterUrl ?? b.url} alt={b.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-faint">
+                      <LayoutGrid size={26} />
+                    </div>
+                  )}
+                  {dur && (
+                    <span className="absolute left-2 top-2">
+                      <Badge tone="neutral" className="border-white/20 bg-black/55 text-white backdrop-blur-sm">
+                        <Clock size={10} /> {dur}s
+                      </Badge>
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (confirm(`Delete the "${b.name}" storyboard?`)) removeAsset(b.id);
+                    }}
+                    className="absolute right-2 top-2 rounded-lg bg-black/55 p-1.5 text-white opacity-0 transition-opacity hover:bg-black/75 group-hover:opacity-100"
+                    aria-label="Delete storyboard"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+                <div className="p-3">
+                  <div className="truncate text-[13.5px] font-semibold">{b.name}</div>
+                  {b.promptFragment && (
+                    <p className="mt-1 line-clamp-2 text-[11.5px] leading-snug text-faint">{b.promptFragment}</p>
+                  )}
+                  <Button size="sm" variant="soft" className="mt-2 w-full" onClick={() => useInMake(b)}>
+                    <Sparkles size={13} /> Use in Make
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -241,34 +308,69 @@ export function StoryboardStudio() {
             <LayoutGrid size={14} /> New storyboard
           </div>
 
+          {/* The hero product — a saved Product steers the sheet with its photos. */}
           <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-faint">
-            What's the video?
+            Product <span className="normal-case">(the hero of every frame)</span>
+          </label>
+          {products.length === 0 ? (
+            <button
+              onClick={() => router.push("/app/products")}
+              className="flex w-full items-center gap-2 rounded-xl border border-dashed border-line-2 px-3 py-2 text-left text-[12.5px] text-muted transition-colors hover:border-accent/50 hover:text-fg"
+            >
+              <Package size={14} className="text-accent-2" /> Save a product first — or just describe it below
+            </button>
+          ) : (
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              {products.map((p) => {
+                const on = productId === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setProductId(on ? null : p.id)}
+                    title={on ? `Deselect ${p.name}` : `Star ${p.name}`}
+                    className={cn(
+                      "flex shrink-0 items-center gap-2 rounded-xl border py-1.5 pl-1.5 pr-3 text-[12px] font-medium transition-colors",
+                      on ? "border-accent bg-accent-soft text-fg" : "border-line text-muted hover:border-line-2",
+                    )}
+                  >
+                    <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-surface-2">
+                      {p.posterUrl || p.url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.posterUrl ?? p.url} alt={p.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <Package size={14} className="m-auto text-faint" />
+                      )}
+                      {on && (
+                        <span className="absolute inset-0 flex items-center justify-center bg-accent/70 text-white">
+                          <Check size={13} />
+                        </span>
+                      )}
+                    </span>
+                    {p.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
+            The commercial
           </label>
           <textarea
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
             rows={4}
-            placeholder="A barista's morning: opening the café before dawn, the first espresso pour, the rush, one quiet smile at closing…"
+            placeholder="A premium spot for a pink strawberry kefir bottle: macro crown splashes of white kefir, strawberries falling in slow motion, the bottle rising from swirling liquid…"
             className={textareaCls}
           />
 
           <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
-            Panels
+            Video length
           </label>
           <Segmented<number>
-            value={panels}
-            onChange={setPanels}
-            options={Object.keys(PANEL_OPTIONS).map((k) => ({
-              value: Number(k),
-              label: `${k} · ${PANEL_OPTIONS[Number(k)].grid}`,
-            }))}
-          />
-
-          <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">Style</label>
-          <Segmented<StyleKey>
-            value={style}
-            onChange={setStyle}
-            options={(Object.keys(STYLES) as StyleKey[]).map((k) => ({ value: k, label: STYLES[k].label }))}
+            value={durationSec}
+            onChange={setDurationSec}
+            options={DURATIONS.map((d) => ({ value: d, label: `${d}s` }))}
           />
 
           {needsSignIn ? (
@@ -298,20 +400,26 @@ export function StoryboardStudio() {
           )}
           {writeError && <p className="mt-2 text-xs text-danger">{writeError}</p>}
           <p className="mt-3 text-[11.5px] leading-relaxed text-faint">
-            The writer directs your idea into {panels} beats — the story flow — and one prompt
-            that draws all of them as a single {PANEL_OPTIONS[panels].grid} sheet.
+            The writer directs a {durationSec}-second commercial scene by scene — the Seedance
+            prompt — and one prompt that draws its nine key frames as a single 3×3 sheet
+            {product ? `, locked to ${product.name}'s photos` : ""}.
           </p>
         </Card>
 
-        {/* ------------------------- Flow + the sheet ------------------------- */}
+        {/* ------------------------ Prompt + the sheet ------------------------ */}
         <div className="space-y-4">
           {flow ? (
             <Card className="p-5">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent-2">
-                  <PenLine size={14} /> Story flow
+                  <PenLine size={14} /> Seedance prompt
                 </div>
-                {title && <Badge tone="neutral">{title}</Badge>}
+                <span className="flex items-center gap-1.5">
+                  <Badge tone="neutral">
+                    <Clock size={10} /> {durationSec}s
+                  </Badge>
+                  {title && <Badge tone="neutral">{title}</Badge>}
+                </span>
               </div>
               <textarea
                 value={flow}
@@ -323,7 +431,10 @@ export function StoryboardStudio() {
                 onClick={() => setShowImagePrompt((v) => !v)}
                 className="mt-3 flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-fg"
               >
-                <ChevronDown size={13} className={showImagePrompt ? "rotate-180 transition-transform" : "transition-transform"} />
+                <ChevronDown
+                  size={13}
+                  className={showImagePrompt ? "rotate-180 transition-transform" : "transition-transform"}
+                />
                 Board image prompt
               </button>
               {showImagePrompt && (
@@ -378,18 +489,16 @@ export function StoryboardStudio() {
                 <LayoutGrid size={22} />
               </span>
               <p className="mt-3 max-w-sm text-sm text-muted">
-                Your storyboard appears here — the story flow written beat by beat, and one image
-                holding every panel of the video from its first frame to its last.
+                Your storyboard appears here — the Seedance prompt written scene by scene, and one
+                image holding all nine key frames of the commercial. Finished boards save
+                themselves.
               </p>
             </Card>
           )}
 
           {job && (
             <Card className="overflow-hidden">
-              <div
-                className="relative w-full bg-surface-2"
-                style={{ aspectRatio: aspectRatio === "16:9" ? "16 / 9" : "1 / 1" }}
-              >
+              <div className="relative aspect-square w-full bg-surface-2">
                 {job.status === "rendering" ? (
                   <div className="shimmer flex h-full flex-col items-center justify-center">
                     <Loader2 size={20} className="animate-spin text-accent-2" />
@@ -407,7 +516,7 @@ export function StoryboardStudio() {
                 )}
                 <span className="absolute left-2 top-2">
                   <Badge tone="neutral" className="border-white/20 bg-black/55 text-white backdrop-blur-sm">
-                    {panels}-panel storyboard
+                    9-panel storyboard · {durationSec}s
                   </Badge>
                 </span>
               </div>
@@ -416,34 +525,111 @@ export function StoryboardStudio() {
 
           {!!boardUrl && !rendering && (
             <Card className="flex flex-wrap items-center gap-2 p-4">
-              <Button onClick={onSave} disabled={saved}>
-                {saved ? (
-                  <>
-                    <Check size={16} className="text-teal" /> Saved to Storyboards
-                  </>
-                ) : (
-                  <>
-                    <Bookmark size={16} /> Save storyboard
-                  </>
-                )}
+              <span className="flex items-center gap-1.5 text-[13px] font-medium text-teal">
+                <Check size={15} /> Saved to your storyboards
+              </span>
+              <Button
+                size="sm"
+                className="ml-auto"
+                onClick={() => savedBoard && useInMake(savedBoard)}
+                disabled={!savedBoard}
+              >
+                Use in Make <ArrowRight size={15} />
               </Button>
-              {saved && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto"
-                  onClick={() => {
-                    const b = boards.find((x) => x.url === boardUrl);
-                    if (b) useInMake(b);
-                  }}
-                >
-                  Use in Make <ArrowRight size={15} />
-                </Button>
-              )}
             </Card>
           )}
         </div>
       </div>
+
+      {/* ------------------------- Storyboard Library ------------------------- */}
+      {STORYBOARD_LIBRARY.length > 0 && (
+        <section className="mt-12">
+          <div className="mb-1 flex items-center gap-2">
+            <Library size={17} className="text-accent-2" />
+            <h2 className="text-lg font-bold tracking-tight">Storyboard Library</h2>
+          </div>
+          <p className="mb-4 text-sm text-muted">
+            Worked examples — the sheet, the full Seedance prompt and the video it generated. Load
+            one and make the same for your product.
+          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {STORYBOARD_LIBRARY.map((ex) => {
+              const open = openExample === ex.id;
+              return (
+                <Card key={ex.id} className="overflow-hidden">
+                  <div className="grid grid-cols-2">
+                    <div className="relative bg-surface-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={ex.sheetUrl} alt={`${ex.title} storyboard`} className="h-full w-full object-cover" />
+                      <span className="absolute left-2 top-2">
+                        <Badge tone="neutral" className="border-white/20 bg-black/55 text-white backdrop-blur-sm">
+                          Storyboard
+                        </Badge>
+                      </span>
+                    </div>
+                    <div className="relative bg-black">
+                      {ex.videoUrl ? (
+                        <video
+                          src={ex.videoUrl}
+                          poster={ex.sheetUrl}
+                          controls
+                          muted
+                          playsInline
+                          preload="metadata"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-xs text-faint">
+                          Video rendering…
+                        </div>
+                      )}
+                      <span className="pointer-events-none absolute left-2 top-2">
+                        <Badge tone="neutral" className="border-white/20 bg-black/55 text-white backdrop-blur-sm">
+                          Result
+                        </Badge>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{ex.title}</span>
+                      <Badge tone="neutral">
+                        <Clock size={10} /> {ex.durationSec}s
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 truncate text-[12px] text-faint">{ex.product}</p>
+                    <p className={cn("mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-muted", !open && "line-clamp-3")}>
+                      {ex.prompt}
+                    </p>
+                    <button
+                      onClick={() => setOpenExample(open ? null : ex.id)}
+                      className="mt-1 text-[11.5px] font-medium text-accent-2 hover:underline"
+                    >
+                      {open ? "Hide the full prompt" : "Read the full prompt"}
+                    </button>
+                    <div className="mt-3 flex items-center gap-2">
+                      <Button size="sm" onClick={() => useExample(ex)}>
+                        <Sparkles size={13} /> Use this storyboard
+                      </Button>
+                      <Button size="sm" variant="soft" onClick={() => copyPrompt(ex)}>
+                        {copiedId === ex.id ? (
+                          <>
+                            <Check size={13} className="text-teal" /> Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={13} /> Copy prompt
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

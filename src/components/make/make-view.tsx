@@ -32,6 +32,7 @@ import { useStore } from "@/lib/store";
 import { cloudConfigured } from "@/lib/supabase";
 import { getModel, listModels, priceFor, videoRate, DEFAULT_MODEL_ID } from "@/lib/models";
 import { ASSET_CLASSES, CLASS_BY_KEY, composeFromAssets } from "@/lib/catalog";
+import { storyboardDurationSec } from "@/lib/storyboard-library";
 import { PURPOSES, PURPOSE_BY_ID, DEFAULT_PURPOSE_ID } from "@/lib/purposes";
 import {
   DURATIONS,
@@ -404,7 +405,12 @@ export function MakeView({ mode }: { mode?: Modality }) {
       } else {
         // A handed-over storyboard attaches as THE storyboard, not a plain image.
         const sb = ids.map((id) => byId[id]).find((a) => a?.class === "storyboard");
-        if (sb) setStoryboardId(sb.id);
+        if (sb) {
+          setStoryboardId(sb.id);
+          // The board was written for a specific video length — preset it.
+          const dur = storyboardDurationSec(sb);
+          if (dur && (DURATIONS as readonly number[]).includes(dur)) setDurationSec(dur);
+        }
         // Video: media assets become references, audio/motion become influences.
         setBoard((b) => {
           const next = {
@@ -527,6 +533,11 @@ export function MakeView({ mode }: { mode?: Modality }) {
     setStoryboardId(on ? null : sb.id);
     if (!on && !prompt.trim() && sb.promptFragment) setPrompt(sb.promptFragment);
     else if (on && sb.promptFragment && prompt.trim() === sb.promptFragment.trim()) setPrompt("");
+    // The board was written for a specific video length — preset the clip to it.
+    if (!on) {
+      const dur = storyboardDurationSec(sb);
+      if (dur && (DURATIONS as readonly number[]).includes(dur)) setDurationSec(dur);
+    }
   }
 
   // The sheet can also leave via its Images slot's ✕ — detach the storyboard too.
