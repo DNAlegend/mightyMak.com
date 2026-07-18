@@ -710,10 +710,12 @@ export function MakeView({ mode }: { mode?: Modality }) {
         body: JSON.stringify({
           brief,
           modality,
-          durationSec, // sizes the Director's beat timeline to the clip length
+          durationSec, // the locked clip length — the cleaned prompt must fit it exactly
           purpose: purpose.id === "custom" ? null : `${purpose.label} — ${purpose.tagline}`,
+          // Named exactly as Seedance will see them ("image 1", "video 1"…) so
+          // the cleaned prompt can reference each attached thing explicitly.
           assets: taggedMedia.length
-            ? taggedMedia.map((t) => `${t.tag} = ${t.asset.promptFragment ?? t.asset.name}`)
+            ? taggedMedia.map((t) => `${t.expand} — ${t.asset.promptFragment ?? t.asset.name}`)
             : pickedAssets.map((a) => a.promptFragment ?? a.name),
         }),
       });
@@ -788,7 +790,7 @@ export function MakeView({ mode }: { mode?: Modality }) {
           mode: "safe",
           avoid: activeJob.error?.slice(0, 300),
           modality,
-          assets: taggedMedia.map((t) => `${t.tag} = ${t.asset.promptFragment ?? t.asset.name}`),
+          assets: taggedMedia.map((t) => `${t.expand} — ${t.asset.promptFragment ?? t.asset.name}`),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1201,7 +1203,10 @@ export function MakeView({ mode }: { mode?: Modality }) {
           </div>
 
 
-          <SectionTitle title="Describe" sub="What's the shot?" />
+          <SectionTitle
+            title="Prompt"
+            sub="Write it rough — then clean it up for Seedance, sized to your locked length and referencing everything you added"
+          />
           <div>
           {/* Provenance: this session is producing a shot from the production. */}
           {planIdea && (
@@ -1374,11 +1379,11 @@ export function MakeView({ mode }: { mode?: Modality }) {
             >
               {directing ? (
                 <>
-                  <Loader2 size={14} className="animate-spin" /> Improving…
+                  <Loader2 size={14} className="animate-spin" /> Cleaning up…
                 </>
               ) : (
                 <>
-                  <Wand2 size={14} /> Improve prompt
+                  <Wand2 size={14} /> Clean up for Seedance
                 </>
               )}
             </Button>
