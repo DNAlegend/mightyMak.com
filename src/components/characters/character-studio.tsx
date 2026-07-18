@@ -18,6 +18,7 @@ import {
   Plus,
   Mic,
   Sparkles,
+  Square,
   Trash2,
   UserRound,
   X,
@@ -25,7 +26,7 @@ import {
 import { useStore } from "@/lib/store";
 import { cloudConfigured } from "@/lib/supabase";
 import { getModel, priceFor } from "@/lib/models";
-import { uploadDataUrl } from "@/lib/cloud";
+import { uploadDataUrl, uploadFile } from "@/lib/cloud";
 import type { Asset, AssetPart } from "@/lib/types";
 import { cn, uid } from "@/lib/utils";
 import { Badge, Button, Card, Progress, Segmented, TextInput } from "@/components/ui";
@@ -84,6 +85,11 @@ export function CharacterStudio() {
   const [saved, setSaved] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
   const voiceRef = useRef<HTMLInputElement>(null);
+  // In-browser voice recording (MediaRecorder) — capped at 60 seconds.
+  const [recording, setRecording] = useState(false);
+  const [recSecs, setRecSecs] = useState(0);
+  const recRef = useRef<MediaRecorder | null>(null);
+  const recTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const characters = useMemo(
     () => assets.filter((a) => a.class === "character" && (a.parts?.length ?? 0) > 0),
@@ -146,6 +152,64 @@ export function CharacterStudio() {
       }
     } finally {
       setUploading(false);
+    }
+  }
+
+  /** Record a voice sample right in the browser; stop uploads it to Storage. */
+  async function toggleRecord() {
+    if (recording) {
+      recRef.current?.stop();
+      return;
+    }
+    if (needsSignIn) {
+      setAuthOpen(true);
+      return;
+    }
+    setUploadError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : undefined;
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      const chunks: BlobPart[] = [];
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (recTimer.current) clearInterval(recTimer.current);
+        setRecording(false);
+        setUploading(true);
+        try {
+          const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+          // Cloud: straight to Storage. Demo: keep it local as a data URL.
+          let url = await uploadFile(uid("charvoice"), blob);
+          if (!url) {
+            url = await new Promise<string>((res, rej) => {
+              const r = new FileReader();
+              r.onload = () => res(r.result as string);
+              r.onerror = rej;
+              r.readAsDataURL(blob);
+            });
+          }
+          setVoice({ url, name: "Recorded voice" });
+        } catch {
+          setUploadError("Couldn't save the recording — try again.");
+        } finally {
+          setUploading(false);
+        }
+      };
+      rec.start();
+      recRef.current = rec;
+      setRecSecs(0);
+      setRecording(true);
+      let secs = 0;
+      recTimer.current = setInterval(() => {
+        secs += 1;
+        setRecSecs(secs);
+        if (secs >= 60) recRef.current?.stop(); // hard cap
+      }, 1000);
+    } catch {
+      setUploadError("Microphone unavailable — allow mic access and try again.");
     }
   }
 
@@ -422,21 +486,43 @@ export function CharacterStudio() {
             Voice <span className="normal-case">(optional — a sample of how they sound)</span>
           </label>
           {voice ? (
-            <span className="flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-[13px]">
-              <Mic size={14} className="text-teal" />
-              <span className="min-w-0 flex-1 truncate">{voice.name}</span>
-              <button onClick={() => setVoice(null)} className="text-faint hover:text-fg" aria-label="Remove voice">
-                <X size={13} />
-              </button>
-            </span>
-          ) : (
+            <div className="rounded-xl border border-line bg-surface-2 px-3 py-2">
+              <span className="flex items-center gap-2 text-[13px]">
+                <Mic size={14} className="text-teal" />
+                <span className="min-w-0 flex-1 truncate">{voice.name}</span>
+                <button onClick={() => setVoice(null)} className="text-faint hover:text-fg" aria-label="Remove voice">
+                  <X size={13} />
+                </button>
+              </span>
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <audio src={voice.url} controls preload="metadata" className="mt-2 h-8 w-full" />
+            </div>
+          ) : recording ? (
             <button
-              onClick={() => voiceRef.current?.click()}
-              disabled={uploading}
-              className="flex items-center gap-2 rounded-xl border border-dashed border-line-2 px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:border-accent/50 hover:text-fg"
+              onClick={toggleRecord}
+              className="flex items-center gap-2 rounded-xl border border-danger/50 bg-danger/10 px-3 py-2 text-[13px] font-semibold text-danger"
             >
-              <Mic size={14} className="text-accent-2" /> Add voice sample
+              <span className="h-2 w-2 animate-pulse rounded-full bg-danger" />
+              Recording {Math.floor(recSecs / 60)}:{String(recSecs % 60).padStart(2, "0")}
+              <Square size={12} className="ml-1" fill="currentColor" /> Stop
             </button>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={toggleRecord}
+                disabled={uploading}
+                className="flex items-center gap-2 rounded-xl border border-dashed border-line-2 px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:border-accent/50 hover:text-fg"
+              >
+                <span className="h-2 w-2 rounded-full bg-danger" /> Record their voice
+              </button>
+              <button
+                onClick={() => voiceRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 rounded-xl border border-dashed border-line-2 px-3 py-2 text-[13px] font-medium text-muted transition-colors hover:border-accent/50 hover:text-fg"
+              >
+                <Mic size={14} className="text-accent-2" /> Upload a sample
+              </button>
+            </div>
           )}
           <input
             ref={voiceRef}
