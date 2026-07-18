@@ -117,6 +117,32 @@ body {
   animation: rise 0.28s ease both;
 }
 
+/* Landing element band: a seamless horizontal marquee. The track holds two
+   identical copies of its row, so sliding exactly -50% loops invisibly. */
+@keyframes marqueeX {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  animation: marqueeX var(--marquee-dur, 60s) linear infinite;
+  will-change: transform;
+}
+.marquee-reverse {
+  animation-direction: reverse;
+}
+.marquee-row:hover .marquee-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+  .marquee-row {
+    overflow-x: auto;
+  }
+}
+
 /* The "add here next" slot: a gentle accent pulse that invites a click. */
 @keyframes slotPulse {
   0%,

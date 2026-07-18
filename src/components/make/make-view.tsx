@@ -31,7 +31,14 @@ import {
 import { useStore } from "@/lib/store";
 import { cloudConfigured } from "@/lib/supabase";
 import { getModel, priceFor, videoRate, DEFAULT_MODEL_ID } from "@/lib/models";
-import { ASSET_CLASSES, CLASS_BY_KEY, composeFromAssets } from "@/lib/catalog";
+import {
+  ASSET_CLASSES,
+  CLASS_BY_KEY,
+  composeFromAssets,
+  elementsByClass,
+  thumbFor,
+  type StudioElement,
+} from "@/lib/catalog";
 import { storyboardDurationSec } from "@/lib/storyboard";
 import { PURPOSE_BY_ID, DEFAULT_PURPOSE_ID } from "@/lib/purposes";
 import {
@@ -295,6 +302,25 @@ export function MakeView({ mode }: { mode?: Modality }) {
   const [resolution, setResolution] = useState<string>(getModel(initialPurpose.modelId).arkResolution ?? "720p");
   const [audio] = useState(true);
   const [pickClass, setPickClass] = useState<AssetClass | null>(null);
+  /** Starter elements: which class row of the catalog gallery is showing. */
+  const [starterClass, setStarterClass] = useState<AssetClass>("character");
+
+  /** Tap a starter element to drop its idea into the prompt; tap again to pull it out. */
+  const toggleStarter = (e: StudioElement) => {
+    const frag = e.promptFragment;
+    setPrompt((p) => {
+      if (p.includes(frag)) {
+        return p
+          .replace(`, ${frag}`, "")
+          .replace(frag, "")
+          .replace(/^[,\s]+/, "")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+      }
+      const base = p.trim().replace(/[,\s]+$/, "");
+      return base ? `${base}, ${frag}` : frag;
+    });
+  };
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState(false);
   const [directing, setDirecting] = useState(false);
@@ -1384,6 +1410,58 @@ export function MakeView({ mode }: { mode?: Modality }) {
               </div>
             );
           })()}
+
+          {/* Starter elements — real Seedream renders; tap one to drop its idea into the prompt. */}
+          <div className="mt-4">
+            <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="text-[12px] font-semibold uppercase tracking-wider text-faint">
+                Starter elements
+              </span>
+              <span className="text-[11px] text-faint">tap to drop one into your prompt</span>
+            </div>
+            <div className="mb-2.5 flex gap-1.5 overflow-x-auto pb-0.5">
+              {ASSET_CLASSES.map((c) => (
+                <button
+                  key={c.key}
+                  onClick={() => setStarterClass(c.key)}
+                  className={cn(
+                    "shrink-0 rounded-full border px-3 py-1 text-[12px] font-medium transition-colors",
+                    starterClass === c.key
+                      ? "border-accent bg-accent-soft text-accent-2"
+                      : "border-line text-muted hover:border-line-2 hover:text-fg",
+                  )}
+                >
+                  {c.glyph} {c.plural}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2.5 overflow-x-auto pb-1">
+              {elementsByClass(starterClass).map((e) => {
+                const on = prompt.includes(e.promptFragment);
+                return (
+                  <button key={e.id} onClick={() => toggleStarter(e)} title={e.blurb} className="group w-24 shrink-0 text-left">
+                    <span
+                      className={cn(
+                        "relative block aspect-square overflow-hidden rounded-xl border transition-all",
+                        on ? "border-accent ring-2 ring-accent/30" : "border-line group-hover:border-line-2",
+                      )}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={thumbFor(e.id)} alt={e.name} loading="lazy" className="h-full w-full object-cover" />
+                      {on && (
+                        <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-white">
+                          <Check size={12} />
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-1 block truncate text-[11.5px] font-medium text-muted group-hover:text-fg">
+                      {e.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* The Director — any language in, pro English prompt out */}
           <div className="mt-2.5 flex flex-wrap items-center gap-2">

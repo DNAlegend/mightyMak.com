@@ -29,7 +29,8 @@ import { uploadDataUrl, uploadFile } from "@/lib/cloud";
 import { clearPendingSheet, getPendingSheet, setPendingSheet } from "@/lib/pending-sheet";
 import type { Asset, AssetPart } from "@/lib/types";
 import { cn, uid } from "@/lib/utils";
-import { Badge, Button, Card, Modal, Progress, Segmented, TextInput } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Modal, Progress, Segmented, TextInput } from "@/components/ui";
+import { thumbFor } from "@/lib/catalog";
 
 type StyleKey = "photoreal" | "cinematic" | "anime" | "3d";
 
@@ -479,9 +480,12 @@ export function CharacterStudio() {
         </div>
       )}
       {!creating && characters.length === 0 && (
-        <Card className="flex min-h-[200px] items-center justify-center p-8 text-center text-sm text-muted">
-          No characters yet — tap “Add new character” to make your first.
-        </Card>
+        <EmptyState
+          icon={<Plus size={24} />}
+          art={[thumbFor("cast-astronaut"), thumbFor("cast-forest-spirit"), thumbFor("cast-desert-nomad")]}
+          title="No characters yet"
+          description="One photo in, a full character sheet out — face and body from every angle, plus a voice if you record one. Tap “Add new character” to make your first."
+        />
       )}
 
       {/* ------------------------- Saved characters ------------------------- */}

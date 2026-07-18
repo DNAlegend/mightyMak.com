@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   Sparkles,
   ArrowRight,
@@ -36,6 +36,8 @@ import {
   type ShowcaseMedia,
 } from "@/lib/showcase";
 import { generatedSrc, type DemoItem } from "@/lib/demo-content";
+import { CLASS_BY_KEY, elementsByClass, thumbFor, type StudioElement } from "@/lib/catalog";
+import type { AssetClass } from "@/lib/types";
 import { USE_CASES, heroDemo, type UseCase } from "@/lib/use-cases";
 import { LEGAL_LINKS, COMPANY } from "@/components/legal/legal-page";
 
@@ -379,6 +381,76 @@ function Steps() {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------- Element band ------------------------------- */
+/* Three slow marquee rows of the studio element catalog — every tile is real
+   Seedream output, the same engine subscribers get. */
+
+const BAND_ROWS: { classes: AssetClass[]; duration: string; reverse?: boolean }[] = [
+  { classes: ["character", "dress"], duration: "72s" },
+  { classes: ["scene", "product"], duration: "88s", reverse: true },
+  { classes: ["dance", "audio"], duration: "80s" },
+];
+
+function ElementTile({ e }: { e: StudioElement }) {
+  return (
+    <figure className="relative h-32 w-32 shrink-0 overflow-hidden rounded-2xl border border-line bg-surface sm:h-40 sm:w-40">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={thumbFor(e.id)} alt={e.name} loading="lazy" className="h-full w-full object-cover" />
+      <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-2.5 pb-2 pt-7">
+        <span className="block truncate text-[12px] font-semibold text-white">{e.name}</span>
+        <span className="block text-[10px] font-medium uppercase tracking-wider text-white/70">
+          {CLASS_BY_KEY[e.class].label}
+        </span>
+      </figcaption>
+    </figure>
+  );
+}
+
+function MarqueeRow({ classes, duration, reverse }: (typeof BAND_ROWS)[number]) {
+  const items = classes.flatMap((c) => elementsByClass(c));
+  return (
+    <div className="marquee-row overflow-hidden">
+      <div
+        className={cn("marquee-track flex w-max", reverse && "marquee-reverse")}
+        style={{ "--marquee-dur": duration } as CSSProperties}
+      >
+        {[0, 1].map((copy) => (
+          <div key={copy} aria-hidden={copy === 1} className="flex shrink-0 gap-3 pr-3 sm:gap-4 sm:pr-4">
+            {items.map((e) => (
+              <ElementTile key={`${copy}-${e.id}`} e={e} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ElementBand() {
+  return (
+    <section id="elements" className="overflow-hidden py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            A back lot full of elements
+          </h2>
+          <p className="mt-3 text-[17px] text-muted">
+            Characters, wardrobe, sets, dances, products and scores — every tile below was generated
+            with the engine you get. Pick them in the Studio, or bring your own.
+          </p>
+        </div>
+      </div>
+      <div className="relative mt-12 space-y-3 sm:space-y-4">
+        {BAND_ROWS.map((row) => (
+          <MarqueeRow key={row.classes.join("-")} {...row} />
+        ))}
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-bg to-transparent sm:w-24" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-bg to-transparent sm:w-24" />
       </div>
     </section>
   );
@@ -1139,6 +1211,7 @@ export function Landing() {
         <ModelBand />
         <Features />
         <Steps />
+        <ElementBand />
         <CharacterConsistency />
         <UseCases />
         <LongForm />

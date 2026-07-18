@@ -192,17 +192,40 @@ export function EmptyState({
   title,
   description,
   action,
+  art,
 }: {
   icon: ReactNode;
   title: string;
   description?: string;
   action?: ReactNode;
+  /** Up to 3 example-image URLs shown as a fanned collage instead of the icon. */
+  art?: string[];
 }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-[var(--radius-xl2)] border border-dashed border-line-2 bg-surface/40 px-6 py-16 text-center">
-      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-3 text-accent-2">
-        {icon}
-      </div>
+      {art && art.length > 0 ? (
+        <div className="mb-5 flex items-center justify-center">
+          {art.slice(0, 3).map((src, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={src}
+              src={src}
+              alt=""
+              loading="lazy"
+              className={cn(
+                "rounded-xl border border-line object-cover shadow-[0_8px_20px_-10px_rgba(16,18,27,0.4)]",
+                i === 1
+                  ? "z-10 h-24 w-24"
+                  : "h-20 w-20 opacity-90 " + (i === 0 ? "translate-x-3 -rotate-6" : "-translate-x-3 rotate-6"),
+              )}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-3 text-accent-2">
+          {icon}
+        </div>
+      )}
       <h3 className="text-base font-semibold text-fg">{title}</h3>
       {description && <p className="mt-1 max-w-sm text-sm text-muted">{description}</p>}
       {action && <div className="mt-5">{action}</div>}

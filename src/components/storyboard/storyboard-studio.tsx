@@ -34,7 +34,8 @@ import { storyboardDurationSec } from "@/lib/storyboard";
 import { clearPendingSheet, getPendingSheet, setPendingSheet } from "@/lib/pending-sheet";
 import type { Asset } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Badge, Button, Card, Progress, Segmented } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Progress, Segmented } from "@/components/ui";
+import { thumbFor } from "@/lib/catalog";
 
 const DURATIONS = [5, 10, 15] as const;
 
@@ -281,9 +282,12 @@ export function StoryboardStudio() {
         </div>
       )}
       {!creating && boards.length === 0 && (
-        <Card className="flex min-h-[200px] items-center justify-center p-8 text-center text-sm text-muted">
-          No storyboards yet — tap “Add new storyboard” to make your first.
-        </Card>
+        <EmptyState
+          icon={<Plus size={24} />}
+          art={[thumbFor("art-product-reveal"), thumbFor("prod-coffee"), thumbFor("set-desert-highway")]}
+          title="No storyboards yet"
+          description="Give it your product and the idea — it writes the commercial scene by scene and draws all nine frames as one sheet. Tap “Add new storyboard” to make your first."
+        />
       )}
 
       {/* ------------------------- Saved storyboards ------------------------- */}

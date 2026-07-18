@@ -29,7 +29,8 @@ import { uploadDataUrl } from "@/lib/cloud";
 import { clearPendingSheet, getPendingSheet, setPendingSheet } from "@/lib/pending-sheet";
 import type { Asset, AssetPart } from "@/lib/types";
 import { uid } from "@/lib/utils";
-import { Badge, Button, Card, Modal, Progress, Segmented, TextInput } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Modal, Progress, Segmented, TextInput } from "@/components/ui";
+import { thumbFor } from "@/lib/catalog";
 
 type StyleKey = "studio" | "photoreal" | "lifestyle" | "premium";
 
@@ -382,9 +383,12 @@ export function ProductStudio() {
         </div>
       )}
       {!creating && products.length === 0 && (
-        <Card className="flex min-h-[200px] items-center justify-center p-8 text-center text-sm text-muted">
-          No products yet — tap “Add new product” to make your first.
-        </Card>
+        <EmptyState
+          icon={<Plus size={24} />}
+          art={[thumbFor("prod-serum"), thumbFor("prod-watch"), thumbFor("prod-handbag")]}
+          title="No products yet"
+          description="Turn a single product shot into a full study sheet the studio can shoot from. Tap “Add new product” to make your first."
+        />
       )}
 
       {/* ------------------------- Saved products ------------------------- */}

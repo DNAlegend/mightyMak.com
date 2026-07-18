@@ -24,6 +24,7 @@ import type { Asset, AssetKind, Category } from "@/lib/types";
 import { isComposite } from "@/lib/types";
 import { cn, timeAgo, uid } from "@/lib/utils";
 import { Button, EmptyState, Modal, TextInput } from "@/components/ui";
+import { thumbFor } from "@/lib/catalog";
 import { AssetThumb } from "@/components/shared";
 
 // Signed-in uploads stream straight to cloud Storage — the cap is Storage's
@@ -362,6 +363,7 @@ export function AssetsView() {
         {assets.length === 0 ? (
           <EmptyState
             icon={<Upload size={24} />}
+            art={[thumbFor("prod-sneakers"), thumbFor("dress-evening-gown"), thumbFor("set-enchanted-forest")]}
             title="Your library is empty"
             description="Add the pictures, videos, sound and scripts your videos are made from — use the buttons above, or drag & drop files anywhere on this page. Select a few later and collect them into a set."
           />

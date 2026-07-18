@@ -21,6 +21,7 @@ import { getModel } from "@/lib/models";
 import { TIERS, type Asset, type VideoJob } from "@/lib/types";
 import { timeAgo, cn } from "@/lib/utils";
 import { Button, Card, Badge, EmptyState, Modal, Progress } from "@/components/ui";
+import { thumbFor } from "@/lib/catalog";
 import {
   AssetThumb,
   VideoPreview,
@@ -75,6 +76,7 @@ export function LibraryView() {
       {videos.length === 0 ? (
         <EmptyState
           icon={<Film size={24} />}
+          art={[thumbFor("set-neon-tokyo"), thumbFor("cast-neon-samurai"), thumbFor("set-cloud-temple")]}
           title="Nothing here yet"
           description="Generate in the Studio and your videos land here — each one keeping the prompt and media it was produced from."
           action={
