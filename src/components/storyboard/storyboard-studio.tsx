@@ -483,6 +483,12 @@ export function StoryboardStudio() {
               )}
 
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
+                <span className="text-muted">Model</span>
+                <span className="font-medium">
+                  {model.glyph} {model.name}
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-sm">
                 <span className="text-muted">Board render cost</span>
                 <span className="flex items-center gap-1.5 font-semibold">
                   <Coins size={15} className="text-warn" /> {cost} credits
