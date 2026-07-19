@@ -1,118 +1,45 @@
 "use client";
 
-// Wardrobe — design an outfit once from photos or a description, get a clean
-// multi-angle outfit sheet, and dress any character in it. A dress is a
-// composite asset plus its parts, so "Use in Studio" fills image slots with
-// its sheet and reference photos — keeping the exact same garment across
-// every scene. A finished sheet saves the outfit automatically; clicking a
-// saved outfit opens it in full with everything entered to produce it,
-// editable, with one-tap regeneration.
+// Wardrobe — the simple one. Upload a photo (or a few) of an outfit, name
+// it, save. The outfit becomes a dress-class composite whose photos ride as
+// references in the Studio, so a character can wear the exact garment from
+// your pictures in any shot. No generation, no sheet — just your images.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  Check,
-  Coins,
-  ImagePlus,
-  Loader2,
-  Plus,
-  Shirt,
-  Sparkles,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Check, ImagePlus, Loader2, Plus, Shirt, Sparkles, Trash2, X } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { cloudConfigured } from "@/lib/supabase";
-import { getModel, priceFor } from "@/lib/models";
 import { uploadDataUrl } from "@/lib/cloud";
-import { clearPendingSheet, getPendingSheet, setPendingSheet } from "@/lib/pending-sheet";
 import type { Asset, AssetPart } from "@/lib/types";
 import { uid } from "@/lib/utils";
-import { Badge, Button, Card, EmptyState, Modal, Progress, Segmented, TextInput } from "@/components/ui";
+import { Button, Card, EmptyState, TextInput } from "@/components/ui";
 import { thumbFor } from "@/lib/catalog";
 
-type StyleKey = "studio" | "editorial" | "street" | "runway";
-
-const STYLES: Record<StyleKey, { label: string; suffix: string }> = {
-  studio: { label: "Catalog", suffix: "clean fashion-catalog photography, pure white background, even soft light, true fabric colour" },
-  editorial: { label: "Editorial", suffix: "high-fashion editorial photography, refined styling, soft directional light, magazine polish" },
-  street: { label: "Street", suffix: "contemporary streetwear lookbook photography, natural daylight, honest textures" },
-  runway: { label: "Runway", suffix: "runway-collection presentation, dramatic clean lighting, couture finish" },
-};
-
-/** ONE outfit = ONE sheet image: every angle in one clean composition. */
-const sheetPrompt = (base: string, style: string) =>
-  `Complete wardrobe reference sheet of ${base}, displayed on a neutral light-grey mannequin form, laid out as one clean composition on a pure white studio background. Top row: the full outfit on the mannequin from four angles side by side — front view, three-quarter view, side view, and back view — the identical garment, drape and proportions in each. Bottom left: a neat grid of close-up detail shots showing the fabric weave, stitching, closures and trims. Bottom right: one large hero shot of the outfit, beautifully lit, lookbook quality. The exact same garment in every view — same cut, colour and fabric — crisp studio lighting, true colour, fashion-catalog clarity. No person, no face, no text, labels or watermarks. ${style}`;
-
-/** A locally staged upload (already in Storage) waiting to be saved as an asset. */
+/** A locally staged upload (already in Storage) waiting to be saved. */
 interface StagedFile {
   url: string;
   name: string;
 }
 
-/** What was entered to produce the sheet — stored on the outfit, editable later. */
-interface Recipe {
-  description: string;
-  details: string;
-  setting: string;
-  style: StyleKey;
-}
-
-const RECIPE_LABEL = "Recipe";
-
-/** Read the stored inputs back off a saved outfit. */
-function recipeOf(a: Asset): Recipe | null {
-  const part = a.parts?.find((p) => p.label === RECIPE_LABEL);
-  if (!part) return null;
-  try {
-    const r = JSON.parse(part.url) as Partial<Recipe>;
-    return {
-      description: r.description ?? "",
-      details: r.details ?? "",
-      setting: r.setting ?? "",
-      style: (r.style as StyleKey) ?? "studio",
-    };
-  } catch {
-    return null;
-  }
-}
-
 export function DressStudio() {
   const router = useRouter();
-  /** Gallery first — the creation wizard opens on "Add new". */
   const [creating, setCreating] = useState(false);
   const assets = useStore((s) => s.assets);
-  const videos = useStore((s) => s.videos);
-  const credits = useStore((s) => s.credits);
-  const hydrated = useStore((s) => s.hasHydrated);
-  const generate = useStore((s) => s.generate);
   const addAsset = useStore((s) => s.addAsset);
   const addCategory = useStore((s) => s.addCategory);
   const removeAsset = useStore((s) => s.removeAsset);
   const updateAsset = useStore((s) => s.updateAsset);
   const setDraftElements = useStore((s) => s.setDraftElements);
   const cloudUser = useStore((s) => s.cloudUser);
-  const subscribed = useStore((s) => s.subscribed);
   const setAuthOpen = useStore((s) => s.setAuthOpen);
 
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [details, setDetails] = useState("");
-  const [setting, setSetting] = useState("");
-  const [style, setStyle] = useState<StyleKey>("studio");
   const [photos, setPhotos] = useState<StagedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [jobId, setJobId] = useState<string | null>(null);
-  /** The saved product being viewed/edited (null while making a new one). */
+  /** The saved outfit being viewed/edited (null while making a new one). */
   const [editingId, setEditingId] = useState<string | null>(null);
-  /** The product's current sheet URL (existing or freshly rendered). */
-  const [sheet, setSheet] = useState<string | null>(null);
-  /** Job ids already auto-saved — a render persists exactly once. */
-  const savedJobs = useRef<Set<string>>(new Set());
-  /** Full-screen view of the sheet. */
-  const [fullOpen, setFullOpen] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
 
   const dresses = useMemo(
@@ -120,29 +47,6 @@ export function DressStudio() {
     [assets],
   );
   const needsSignIn = cloudConfigured && !cloudUser;
-  // Unsubscribed: keep Generate clickable so it opens the subscribe paywall.
-  const locked = cloudConfigured && subscribed === false;
-
-  // The sheet renders on the flagship image model — fabric detail deserves it.
-  const model = getModel("gpt-image-2");
-  const cost = priceFor(model, { count: 1 });
-  const canAfford = credits >= cost;
-  const described = description.trim().length > 3 || photos.length > 0;
-  const canGenerate = hydrated && described && canAfford;
-
-  const job = jobId ? videos.find((v) => v.id === jobId) ?? null : null;
-  const rendering = job?.status === "rendering";
-
-  const base = [
-    photos.length
-      ? "the exact outfit shown in the reference photos — same cut, colour, fabric and finish"
-      : null,
-    description.trim() || null,
-    details.trim() || null,
-    setting.trim() ? `styled for ${setting.trim()}` : null,
-  ]
-    .filter(Boolean)
-    .join(", ");
 
   async function stageFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -164,9 +68,7 @@ export function DressStudio() {
           r.onerror = rej;
           r.readAsDataURL(file);
         });
-        // Cloud → Storage URL; demo (no cloud) → keep the data URL locally
-        // instead of failing with a misleading "try again".
-        let url = await uploadDataUrl(uid("produp"), dataUrl);
+        let url = await uploadDataUrl(uid("dressup"), dataUrl);
         if (!url && !cloudConfigured) url = dataUrl;
         if (!url) {
           setUploadError("Upload failed — try again.");
@@ -176,188 +78,75 @@ export function DressStudio() {
       }
     } finally {
       setUploading(false);
+      if (photoRef.current) photoRef.current.value = "";
     }
   }
 
-  function onGenerate() {
-    if (rendering) return;
-    if (locked) {
-      useStore.getState().blockIfLocked(); // opens the subscribe paywall
-      return;
-    }
-    if (!canGenerate) return;
-    const id = generate({
-      prompt: sheetPrompt(base, STYLES[style].suffix),
-      tier: "standard",
-      durationSec: 5,
-      aspectRatio: "1:1",
-      audio: false,
-      modelId: model.id,
-      modality: "image",
-      direction: description.trim() || name.trim(),
-      refImageUrls: photos.length ? photos.map((p) => p.url) : undefined,
-    });
-    setJobId(id);
-    // Safety net: if they navigate away mid-render, the next visit restores
-    // this state and the auto-save still lands the paid sheet.
-    setPendingSheet("dress", {
-      jobId: id,
-      data: { editingId, name, description, details, setting, style, photos },
-    });
-  }
-
-  /**
-   * Persist the outfit from the current form state — automatically after a
-   * render, and via "Save details" for text edits. An outfit = a collection
-   * of real assets + one composite that bundles them (parts include the
-   * Recipe: everything entered to produce the sheet).
-   */
-  function persistDress(overrides?: { sheetUrl?: string | null }) {
-    const theSheet = overrides?.sheetUrl !== undefined ? overrides.sheetUrl : sheet;
-    const prodName = name.trim() || "New Outfit";
-    const recipePart: AssetPart = {
-      role: "reference",
-      kind: "prompt",
-      url: JSON.stringify({ description, details, setting, style } satisfies Recipe),
-      label: RECIPE_LABEL,
-    };
-    const parts: AssetPart[] = [
-      ...photos.map((p, i) => ({
-        role: "reference" as const,
-        kind: "image" as const,
-        url: p.url,
-        posterUrl: p.url,
-        label: `Photo ${i + 1}`,
-      })),
-      ...(theSheet
-        ? [{ role: "primary" as const, kind: "image" as const, url: theSheet, posterUrl: theSheet, label: "Outfit sheet" }]
-        : []),
-      recipePart,
-    ];
-    const hero = theSheet ?? photos[0]?.url ?? "";
-    const promptFragment = `${prodName}${description.trim() ? `, ${description.trim().split(/[,.\n]/)[0].toLowerCase()}` : ""}`;
+  /** Save the outfit: photos as parts, the first photo as its face. */
+  function persistDress() {
+    if (!photos.length) return;
+    const outfitName = name.trim() || "New Outfit";
+    const hero = photos[0].url;
+    const parts: AssetPart[] = photos.map((p, i) => ({
+      role: i === 0 ? ("primary" as const) : ("reference" as const),
+      kind: "image" as const,
+      url: p.url,
+      posterUrl: p.url,
+      label: `Photo ${i + 1}`,
+    }));
+    const promptFragment = `${outfitName} — the exact outfit shown in its reference photos, same cut, colour and fabric`;
 
     if (editingId) {
-      const existing = assets.find((a) => a.id === editingId);
-      if (!existing) return;
-      updateAsset(editingId, { name: prodName, url: hero, posterUrl: hero, parts, promptFragment });
-      const colId = existing.categoryId;
-      if (colId) {
-        const sheetAsset = assets.find((a) => a.categoryId === colId && a.kind === "image" && / outfit sheet$/.test(a.name));
-        if (theSheet && sheetAsset && sheetAsset.url !== theSheet) {
-          updateAsset(sheetAsset.id, { url: theSheet, posterUrl: theSheet });
-        } else if (theSheet && !sheetAsset) {
-          addAsset({ name: `${prodName} — outfit sheet`, kind: "image", url: theSheet, posterUrl: theSheet, categoryId: colId, source: "generation", promptFragment: `${prodName}'s outfit sheet — every angle of it` });
-        }
-      }
-      return;
+      updateAsset(editingId, { name: outfitName, url: hero, posterUrl: hero, parts, promptFragment });
+    } else {
+      const col = addCategory(`${outfitName} — outfit`);
+      photos.forEach((p, i) => {
+        addAsset({
+          name: `${outfitName} — photo ${i + 1}`,
+          kind: "image",
+          url: p.url,
+          posterUrl: p.url,
+          categoryId: col.id,
+          source: "upload",
+          promptFragment: `${outfitName}'s reference photo`,
+        });
+      });
+      addAsset({
+        name: outfitName,
+        kind: "image",
+        url: hero,
+        posterUrl: hero,
+        categoryId: col.id,
+        source: "upload",
+        class: "dress",
+        promptFragment,
+        parts,
+      } as Omit<Asset, "id" | "createdAt">);
     }
-
-    const col = addCategory(`${prodName} — outfit`);
-    photos.forEach((p, i) => {
-      addAsset({ name: `${prodName} — photo ${i + 1}`, kind: "image", url: p.url, posterUrl: p.url, categoryId: col.id, source: "upload", promptFragment: `${prodName}'s reference photo` });
-    });
-    if (theSheet) {
-      addAsset({ name: `${prodName} — outfit sheet`, kind: "image", url: theSheet, posterUrl: theSheet, categoryId: col.id, source: "generation", promptFragment: `${prodName}'s outfit sheet — every angle of it` });
-    }
-    const composite = addAsset({
-      name: prodName,
-      kind: "image",
-      url: hero,
-      posterUrl: hero || undefined,
-      categoryId: col.id,
-      source: "generation",
-      class: "dress",
-      promptFragment,
-      parts,
-    } as Omit<Asset, "id" | "createdAt">);
-    setEditingId(composite.id);
+    resetForm();
+    setCreating(false);
   }
 
-  // A finished sheet saves the outfit automatically — nothing to click.
-  useEffect(() => {
-    if (!job || job.status !== "succeeded" || !job.posterUrl) return;
-    if (savedJobs.current.has(job.id)) return;
-    savedJobs.current.add(job.id);
-    setSheet(job.posterUrl);
-    persistDress({ sheetUrl: job.posterUrl });
-    clearPendingSheet("dress");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job?.status, job?.posterUrl]);
-
-  // Restore an in-flight (or finished-but-unsaved) render from a previous
-  // visit, so navigating away mid-render never loses the paid sheet.
-  useEffect(() => {
-    if (!hydrated || jobId) return;
-    const pending = getPendingSheet<{
-      editingId: string | null;
-      name: string;
-      description: string;
-      details: string;
-      setting: string;
-      style: StyleKey;
-      photos: StagedFile[];
-    }>("dress");
-    if (!pending) return;
-    const pendingJob = useStore.getState().videos.find((v) => v.id === pending.jobId);
-    // Not in the store YET may just mean cloud videos haven't hydrated —
-    // keep the marker; only a job we can SEE failed is truly dead.
-    if (!pendingJob) return;
-    if (pendingJob.status === "failed") {
-      clearPendingSheet("dress");
-      return;
-    }
-    const d = pending.data;
-    setEditingId(d.editingId);
-    setName(d.name);
-    setDescription(d.description);
-    setDetails(d.details);
-    setSetting(d.setting);
-    setStyle(d.style);
-    setPhotos(d.photos ?? []);
-    setJobId(pending.jobId);
-    setCreating(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated]);
-
-  /** Blank slate for "Add new outfit" — never reopen with last time's data. */
   function resetForm() {
     setEditingId(null);
     setName("");
-    setDescription("");
-    setDetails("");
-    setSetting("");
-    setStyle("studio");
     setPhotos([]);
-    setJobId(null);
-    setSheet(null);
     setUploadError(null);
   }
 
-  /** Open a saved outfit in full: sheet, recipe — edit & regenerate. */
-  function openDress(c: Asset) {
-    const recipe = recipeOf(c);
-    setEditingId(c.id);
-    setName(c.name);
-    setDescription(recipe?.description ?? "");
-    setDetails(recipe?.details ?? "");
-    setSetting(recipe?.setting ?? "");
-    setStyle(recipe?.style ?? "studio");
-    const photoParts = (c.parts ?? []).filter((p) => p.role === "reference" && p.kind === "image");
+  /** Open a saved outfit to rename or swap photos. */
+  function openDress(d: Asset) {
+    setEditingId(d.id);
+    setName(d.name);
+    const photoParts = (d.parts ?? []).filter((p) => p.kind === "image");
     setPhotos(photoParts.map((p, i) => ({ url: p.url, name: `Photo ${i + 1}` })));
-    const sheetPart = c.parts?.find((p) => p.role === "primary");
-    setSheet(sheetPart?.url ?? c.posterUrl ?? null);
-    setJobId(null);
     setUploadError(null);
     setCreating(true);
   }
 
-  /** Dress the scene: its sheet & photos fill image slots in the Studio. */
+  /** Dress the scene: its photos fill image slots in the Studio. */
   function useInMake(dress: Asset) {
-    const ids = assets
-      .filter((a) => a.categoryId === dress.categoryId && a.id !== dress.id)
-      .map((a) => a.id);
-    setDraftElements(ids.length ? ids : [dress.id]);
+    setDraftElements([dress.id]);
     router.push("/app/make");
   }
 
@@ -366,13 +155,12 @@ export function DressStudio() {
       <header className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Wardrobe</h1>
         <p className="mt-1 text-sm text-muted">
-          Design an outfit from photos or a description — get a clean multi-angle outfit sheet,
-          then dress your characters in the exact same garment in any video. Sheets save
-          themselves.
+          Upload photos of an outfit and name it — then dress your characters in the exact same
+          garment in any video.
         </p>
       </header>
 
-      {/* Gallery first — the wizard hides behind "Add new". */}
+      {/* Gallery first — the form hides behind "Add new". */}
       {!creating && (
         <div className="mb-5">
           <Button
@@ -391,22 +179,22 @@ export function DressStudio() {
           icon={<Plus size={24} />}
           art={[thumbFor("dress-evening-gown"), thumbFor("dress-kimono"), thumbFor("dress-cyber-armor")]}
           title="No outfits yet"
-          description="Turn a photo or a description into a full outfit sheet your characters can wear. Tap “Add new outfit” to make your first."
+          description="Upload a photo of an outfit and your characters can wear the exact same garment. Tap “Add new outfit” to save your first."
         />
       )}
 
       {/* -------------------------- Saved outfits -------------------------- */}
       {!creating && dresses.length > 0 && (
         <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {dresses.map((c) => {
-            const views = c.parts?.filter((p) => p.kind === "image").length ?? 0;
+          {dresses.map((d) => {
+            const views = d.parts?.filter((p) => p.kind === "image").length ?? 0;
             return (
-              <Card key={c.id} className="group overflow-hidden">
+              <Card key={d.id} className="group overflow-hidden">
                 <div className="relative aspect-square bg-surface-2">
-                  <button onClick={() => openDress(c)} className="block h-full w-full" title={`Open ${c.name}`}>
-                    {c.posterUrl || c.url ? (
+                  <button onClick={() => openDress(d)} className="block h-full w-full" title={`Open ${d.name}`}>
+                    {d.posterUrl || d.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.posterUrl ?? c.url} alt={c.name} className="h-full w-full object-cover" />
+                      <img src={d.posterUrl ?? d.url} alt={d.name} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-faint">
                         <Shirt size={26} />
@@ -415,8 +203,8 @@ export function DressStudio() {
                   </button>
                   <button
                     onClick={() => {
-                      if (confirm(`Delete ${c.name}? Its sheet assets stay in your library.`)) {
-                        removeAsset(c.id);
+                      if (confirm(`Delete ${d.name}? Its photos stay in your library.`)) {
+                        removeAsset(d.id);
                       }
                     }}
                     className="absolute right-2 top-2 rounded-lg bg-black/55 p-1.5 text-white transition-opacity hover:bg-black/75 sm:opacity-0 sm:group-hover:opacity-100"
@@ -426,9 +214,9 @@ export function DressStudio() {
                   </button>
                 </div>
                 <div className="p-3">
-                  <div className="truncate text-[13.5px] font-semibold">{c.name}</div>
-                  <div className="mt-1 text-[11px] text-faint">{views} views</div>
-                  <Button size="sm" variant="soft" className="mt-2 w-full" onClick={() => useInMake(c)}>
+                  <div className="truncate text-[13.5px] font-semibold">{d.name}</div>
+                  <div className="mt-1 text-[11px] text-faint">{views} {views === 1 ? "photo" : "photos"}</div>
+                  <Button size="sm" variant="soft" className="mt-2 w-full" onClick={() => useInMake(d)}>
                     <Sparkles size={13} /> Use in Studio
                   </Button>
                 </div>
@@ -446,223 +234,71 @@ export function DressStudio() {
           >
             ← All outfits
           </button>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,400px)_1fr]">
-        {/* ------------------------------ Form ------------------------------ */}
-        <Card className="h-fit p-5">
-          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent-2">
-            <Shirt size={14} /> {editingId ? "Edit outfit" : "New outfit"}
-          </div>
+          <Card className="max-w-md p-5">
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent-2">
+              <Shirt size={14} /> {editingId ? "Edit outfit" : "New outfit"}
+            </div>
 
-          <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-faint">Name</label>
-          <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Scarlet Gown, Midnight Tux…" />
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-faint">Name</label>
+            <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Scarlet Gown, Midnight Tux…" />
 
-          {/* Photos — build the product from one or more pictures */}
-          <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
-            Photos <span className="normal-case">(optional — 1 to 4 pictures of the outfit)</span>
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {photos.map((p, i) => (
-              <span key={p.url} className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt={p.name} className="h-14 w-14 rounded-xl border border-line object-cover" />
-                <button
-                  onClick={() => setPhotos((arr) => arr.filter((_, j) => j !== i))}
-                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fg text-bg"
-                  aria-label="Remove photo"
-                >
-                  <X size={11} />
-                </button>
-              </span>
-            ))}
-            {photos.length < 4 && (
-              <button
-                onClick={() => photoRef.current?.click()}
-                disabled={uploading}
-                className="flex h-14 w-14 items-center justify-center rounded-xl border border-dashed border-line-2 text-faint transition-colors hover:border-accent/50 hover:text-accent-2"
-                aria-label="Add photo"
-              >
-                {uploading ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
-              </button>
-            )}
-            <input
-              ref={photoRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                void stageFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-          </div>
-
-          <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
-            What is it?
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            placeholder="A floor-length red silk evening gown with a draped open back…"
-            className="w-full resize-none rounded-xl border border-line bg-surface-2 p-3 text-base leading-relaxed text-fg placeholder:text-faint focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm"
-          />
-
-          <label className="mb-1.5 mt-3 block text-xs font-medium uppercase tracking-wide text-faint">
-            Details <span className="normal-case">(fabric, colours, cut)</span>
-          </label>
-          <textarea
-            value={details}
-            onChange={(e) => setDetails(e.target.value)}
-            rows={2}
-            placeholder="Bias-cut silk charmeuse, deep scarlet, thin straps, sweeping hem…"
-            className="w-full resize-none rounded-xl border border-line bg-surface-2 p-3 text-base leading-relaxed text-fg placeholder:text-faint focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 sm:text-sm"
-          />
-
-          <label className="mb-1.5 mt-3 block text-xs font-medium uppercase tracking-wide text-faint">
-            Occasion or styling <span className="normal-case">(optional)</span>
-          </label>
-          <TextInput
-            value={setting}
-            onChange={(e) => setSetting(e.target.value)}
-            placeholder="red-carpet evening, paired with gold jewelry"
-          />
-          {uploadError && <p className="mt-2 text-xs text-danger">{uploadError}</p>}
-
-          <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">Style</label>
-          <Segmented<StyleKey>
-            value={style}
-            onChange={setStyle}
-            options={(Object.keys(STYLES) as StyleKey[]).map((k) => ({ value: k, label: STYLES[k].label }))}
-          />
-
-          <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
-            <span className="text-muted">Model</span>
-            <span className="font-medium">
-              {model.glyph} {model.name}
-            </span>
-          </div>
-          <div className="mt-1.5 flex items-center justify-between text-sm">
-            <span className="text-muted">Estimated cost</span>
-            <span className="flex items-center gap-1.5 font-semibold">
-              <Coins size={15} className="text-warn" /> {cost} credits
-            </span>
-          </div>
-          {needsSignIn ? (
-            <Button size="lg" className="mt-3 w-full" onClick={() => setAuthOpen(true)}>
-              <Sparkles size={17} /> Sign in to generate
-            </Button>
-          ) : (
-            <Button
-              size="lg"
-              className="mt-3 w-full"
-              disabled={rendering || (!locked && !canGenerate)}
-              onClick={onGenerate}
-            >
-              {rendering ? (
-                <>
-                  <Loader2 size={17} className="animate-spin" /> Generating…
-                </>
-              ) : locked ? (
-                <>
-                  <Sparkles size={17} /> Subscribe to generate
-                </>
-              ) : sheet ? (
-                <>
-                  <Sparkles size={17} /> Regenerate outfit sheet
-                </>
-              ) : (
-                <>
-                  <Sparkles size={17} /> Generate outfit sheet
-                </>
-              )}
-            </Button>
-          )}
-          {editingId && !rendering && (
-            <Button variant="soft" className="mt-2 w-full" onClick={() => persistDress()}>
-              <Check size={16} /> Save details
-            </Button>
-          )}
-          {hydrated && !needsSignIn && !locked && !canAfford && (
-            <p className="mt-2 text-center text-xs text-danger">
-              Not enough credits — you need {cost - credits} more.
-            </p>
-          )}
-        </Card>
-
-        {/* ----------------------------- The sheet ---------------------------- */}
-        <div className="space-y-4">
-          {!job && !sheet ? (
-            <Card className="flex min-h-[320px] flex-col items-center justify-center p-8 text-center">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent-2">
-                <Shirt size={22} />
-              </span>
-              <p className="mt-3 max-w-sm text-sm text-muted">
-                Your outfit sheet appears here — one image with the garment from every angle:
-                front, three-quarter, side and back, fabric close-ups, and a hero shot. It saves
-                itself the moment it renders.
-              </p>
-            </Card>
-          ) : (
-            <Card className="overflow-hidden">
-              <div className="relative aspect-square w-full bg-surface-2">
-                {rendering ? (
-                  <div className="shimmer flex h-full flex-col items-center justify-center">
-                    <Loader2 size={20} className="animate-spin text-accent-2" />
-                    <div className="mt-3 w-32">
-                      <Progress value={job!.progress} />
-                    </div>
-                  </div>
-                ) : job?.status === "failed" ? (
-                  <div className="flex h-full items-center justify-center p-4 text-center text-xs text-danger">
-                    {job.error ?? "Failed"}
-                  </div>
-                ) : sheet ? (
-                  <button onClick={() => setFullOpen(true)} className="block h-full w-full" title="View full size">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={sheet} alt="Outfit sheet" className="h-full w-full object-cover" />
+            <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
+              Photos <span className="normal-case">(1 to 4 pictures of the outfit)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {photos.map((p, i) => (
+                <span key={p.url} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.url} alt={p.name} className="h-20 w-20 rounded-xl border border-line object-cover" />
+                  <button
+                    onClick={() => setPhotos((arr) => arr.filter((_, j) => j !== i))}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fg text-bg"
+                    aria-label="Remove photo"
+                  >
+                    <X size={11} />
                   </button>
-                ) : null}
-                <span className="pointer-events-none absolute left-2 top-2">
-                  <Badge tone="neutral" className="border-white/20 bg-black/55 text-white backdrop-blur-sm">
-                    Outfit sheet
-                  </Badge>
                 </span>
-              </div>
-            </Card>
-          )}
-
-          {!!sheet && !rendering && (
-            <Card className="flex flex-wrap items-center gap-2 p-4">
-              <span className="flex items-center gap-1.5 text-[13px] font-medium text-teal">
-                <Check size={15} /> Saved automatically
-              </span>
-              <span className="text-[12px] text-faint">— tap the sheet to see it full size</span>
-              <Button
-                size="sm"
-                className="ml-auto"
-                onClick={() => {
-                  const c = assets.find((a) => a.id === editingId);
-                  if (c) useInMake(c);
+              ))}
+              {photos.length < 4 && (
+                <button
+                  onClick={() => photoRef.current?.click()}
+                  disabled={uploading}
+                  className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-line-2 text-faint transition-colors hover:border-accent/50 hover:text-accent-2"
+                  aria-label="Add photo"
+                >
+                  {uploading ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+                </button>
+              )}
+              <input
+                ref={photoRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  void stageFiles(e.target.files);
+                  e.target.value = "";
                 }}
-                disabled={!editingId}
-              >
-                Use in Studio <ArrowRight size={15} />
+              />
+            </div>
+            {uploadError && <p className="mt-2 text-xs text-danger">{uploadError}</p>}
+
+            {needsSignIn ? (
+              <Button size="lg" className="mt-5 w-full" onClick={() => setAuthOpen(true)}>
+                <Check size={17} /> Sign in to save
               </Button>
-            </Card>
-          )}
-        </div>
-      </div>
+            ) : (
+              <Button size="lg" className="mt-5 w-full" disabled={!photos.length} onClick={persistDress}>
+                <Check size={17} /> {editingId ? "Save changes" : "Save outfit"}
+              </Button>
+            )}
+            <p className="mt-3 text-[11.5px] leading-relaxed text-faint">
+              The first photo is the outfit&rsquo;s cover. In the Studio, its photos ride as
+              references so the exact same garment appears in your shots.
+            </p>
+          </Card>
         </>
       )}
-
-      {/* The sheet, full size. */}
-      <Modal open={fullOpen} onClose={() => setFullOpen(false)} size="lg" title={name.trim() || "Outfit sheet"}>
-        {sheet && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={sheet} alt="Outfit sheet — full size" className="w-full rounded-xl" />
-        )}
-      </Modal>
     </div>
   );
 }
