@@ -322,14 +322,14 @@ ${HANDHELD}`,
       close: "My skin finally looks awake.",
     },
     script: (i) =>
-      `UGC-style vertical ad shot at a BATHROOM MIRROR. ${i.presenter} films their mirror reflection with the phone visible in one hand, warm vanity light bulbs glowing along the mirror's edge.
+      `UGC-style vertical ad shot at a VANITY MIRROR with warm bulbs along its edge. ${i.presenter}, fully dressed in a soft white tee, films their mirror reflection with the phone visible in one hand.
 
-0-3s: Mirror selfie framing, they meet their own eyes in the reflection and say "${i.open}", towel-dried hair, fresh morning face.
+0-3s: Mirror selfie framing, they meet their own eyes in the reflection and say "${i.open}", bright fresh morning face, hair neatly clipped back.
 3-7s: They hold ${i.product} up beside their cheek in the mirror — the exact product from the reference, label to camera — and give it a little shake, smiling.
-7-11s: Close insert at the sink: the product in use with gentle, precise fingers, water beads on porcelain, the vanity bulbs throwing soft highlights.
+7-11s: Close insert at the vanity table: the product in use with gentle, precise fingers among tidy makeup brushes and a small plant, the warm bulbs throwing soft highlights.
 11-15s: Back to the mirror, they lean toward their reflection, point at their own face and say "${i.close}", then laugh softly; end on the laugh.
 
-Audio: bathroom room tone, a tap turning off, the two lines intimate and close, a light airy pop bed underneath.
+Audio: quiet room tone, a soft click of the product being set down, the two lines intimate and close, a light airy pop bed underneath.
 
 ${HANDHELD}`,
   },

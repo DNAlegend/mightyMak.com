@@ -52,5 +52,13 @@
   "score-lofi": "/generated/score-lofi.jpg",
   "score-strings": "/generated/score-strings.jpg",
   "score-ambient": "/generated/score-ambient.jpg",
-  "score-drums": "/generated/score-drums.jpg"
+  "score-drums": "/generated/score-drums.jpg",
+  "ugc-kitchen-counter": "/generated/ugc-kitchen-counter.mp4",
+  "ugc-bus-commute": "/generated/ugc-bus-commute.mp4",
+  "ugc-car-review": "/generated/ugc-car-review.mp4",
+  "ugc-desk-latenight": "/generated/ugc-desk-latenight.mp4",
+  "ugc-couch-haul": "/generated/ugc-couch-haul.mp4",
+  "ugc-gym-check": "/generated/ugc-gym-check.mp4",
+  "ugc-cafe-table": "/generated/ugc-cafe-table.mp4",
+  "ugc-street-walk": "/generated/ugc-street-walk.mp4"
 }
