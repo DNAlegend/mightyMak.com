@@ -387,7 +387,10 @@ export function CharacterStudio() {
     }>("character");
     if (!pending) return;
     const pendingJob = useStore.getState().videos.find((v) => v.id === pending.jobId);
-    if (!pendingJob || pendingJob.status === "failed") {
+    // Not in the store YET may just mean cloud videos haven't hydrated —
+    // keep the marker; only a job we can SEE failed is truly dead.
+    if (!pendingJob) return;
+    if (pendingJob.status === "failed") {
       clearPendingSheet("character");
       return;
     }
