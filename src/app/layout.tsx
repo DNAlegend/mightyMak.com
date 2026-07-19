@@ -17,23 +17,23 @@ const grotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-grotesk", 
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://vibvid.ai"),
-  title: "VIBVID.AI — Your AI Video Studio",
+  title: "VIBVID.AI — AI UGC Ads in Minutes",
   description:
-    "Plan the concept, cast your characters, and produce scroll-stopping video with native audio — cheap drafts to iterate, full 1080p when it counts. One studio, every video managed.",
+    "Make creator-style UGC video ads with AI. Pick a proven 15-second style, swap in your real product, presenter and lines — render vertical ads with native audio in minutes. From $19/month.",
   openGraph: {
-    title: "VIBVID.AI — Your AI Video Studio",
+    title: "VIBVID.AI — UGC ads without the creators",
     description:
-      "Plan it, cast it, make it — AI video with consistent characters, from draft to 1080p production.",
+      "Ten proven 15-second ad styles. Your product, your presenter, your lines — rendered in minutes.",
     url: "/",
     siteName: "VIBVID.AI",
-    images: [{ url: "/generated/hero-neon-city.png", width: 1280, height: 720 }],
+    images: [{ url: "/og/ugc-og.jpg", width: 1200, height: 630 }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "VIBVID.AI — Your AI Video Studio",
-    description: "Your AI video studio, one prompt away.",
-    images: ["/generated/hero-neon-city.png"],
+    title: "VIBVID.AI — UGC ads without the creators",
+    description: "Ten proven ad styles. Your product, your presenter, your lines — in minutes.",
+    images: ["/og/ugc-og.jpg"],
   },
 };
 

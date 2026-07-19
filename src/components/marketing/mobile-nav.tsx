@@ -10,10 +10,9 @@ import Link from "next/link";
 import { Menu, X, ArrowRight } from "lucide-react";
 
 const NAV_LINKS = [
-  { href: "/#features", label: "Features" },
-  { href: "/#characters", label: "Characters" },
-  { href: "/#longform", label: "Seasons" },
-  { href: "/#usecases", label: "Use cases" },
+  { href: "/#styles", label: "Styles" },
+  { href: "/#how", label: "How it works" },
+  { href: "/#compare", label: "Compare" },
   { href: "/pricing", label: "Pricing" },
 ];
 
@@ -83,7 +82,7 @@ export function MobileNav({ appHref }: { appHref: string }) {
                 onClick={() => setOpen(false)}
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-[15px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(236,19,32,0.7)] transition-colors hover:bg-accent-2"
               >
-                Sign in to your studio <ArrowRight size={16} />
+                Make your first ad <ArrowRight size={16} />
               </Link>
             </div>
           </nav>

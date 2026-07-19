@@ -6,7 +6,6 @@ import {
   Check,
   ChevronDown,
   Wand2,
-  Layers,
   LayoutGrid,
   Clapperboard,
   UserRound,
@@ -27,14 +26,14 @@ import { LogoWordmark } from "@/components/logo";
 import { MobileNav } from "@/components/marketing/mobile-nav";
 import { HeaderAuth } from "@/components/marketing/header-auth";
 import {
-  HERO,
-  HERO_CHIPS,
   SHOWCASE,
   CONSISTENT_CHARACTER,
   CHARACTER_SCENES,
   SEASON,
   type ShowcaseMedia,
 } from "@/lib/showcase";
+import { UGC_STYLES } from "@/lib/ugc-templates";
+import { InViewVideo, PhoneFrame, UgcStyleTile } from "@/components/marketing/ugc-phone";
 import { generatedSrc, type DemoItem } from "@/lib/demo-content";
 import { CLASS_BY_KEY, elementsByClass, thumbFor, type StudioElement } from "@/lib/catalog";
 import type { AssetClass } from "@/lib/types";
@@ -114,16 +113,16 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Brand />
         <nav className="hidden items-center gap-7 text-sm font-medium text-muted md:flex">
-          <a href="/#seedance" className="transition-colors hover:text-fg">Seedance 2.0</a>
-          <a href="/#features" className="transition-colors hover:text-fg">Features</a>
-          <a href="/#characters" className="transition-colors hover:text-fg">Characters</a>
-          <a href="/#longform" className="transition-colors hover:text-fg">Seasons</a>
-          <a href="/#usecases" className="transition-colors hover:text-fg">Use cases</a>
+          <a href="/#styles" className="transition-colors hover:text-fg">Styles</a>
+          <a href="/#how" className="transition-colors hover:text-fg">How it works</a>
+          <a href="/#compare" className="transition-colors hover:text-fg">Compare</a>
+          <a href="/#characters" className="transition-colors hover:text-fg">Your presenter</a>
+          <a href="/#features" className="transition-colors hover:text-fg">Studio</a>
           <a href="/pricing" className="transition-colors hover:text-fg">Pricing</a>
         </nav>
         <div className="flex items-center gap-2">
           <HeaderAuth />
-          <MobileNav appHref={APP} />
+          <MobileNav appHref="/app/ugc" />
         </div>
       </div>
     </header>
@@ -132,14 +131,16 @@ export function Header() {
 
 /** Concrete capability pills shown under the hero CTAs. */
 const HERO_PILLS = [
-  "Seedance 2.0 engine",
-  "Shot-by-shot planning",
-  "Consistent characters",
-  "Native audio & 4K",
+  "10 proven ad styles",
+  "Your real product, not a lookalike",
+  "Same presenter in every ad",
+  "9:16 · native audio · 15s",
 ];
 
-/** Scene thumbnails for the hero timeline — real generated media when available. */
-const HERO_TIMELINE = SHOWCASE.slice(0, 4);
+/** The three real UGC ads framed as phones in the hero. */
+const HERO_PHONES = ["ugc-mirror-routine", "ugc-car-review", "ugc-kitchen-counter"]
+  .map((id) => ({ style: UGC_STYLES.find((s) => s.id === id)!, src: generatedSrc(id) }))
+  .filter((p) => p.style && p.src) as { style: (typeof UGC_STYLES)[number]; src: string }[];
 
 function Hero() {
   return (
@@ -178,20 +179,20 @@ function Hero() {
           Powered by Seedance 2.0 — ByteDance&rsquo;s frontier video model
         </div>
         <h1 className="font-display mx-auto mt-5 max-w-4xl text-4xl font-bold leading-[1.05] tracking-tight sm:text-[58px]">
-          Not just clips.
-          <br className="hidden sm:block" /> <span className="gradient-text">Finished video productions.</span>
+          Scroll-stopping UGC ads.
+          <br className="hidden sm:block" /> <span className="gradient-text">No creators required.</span>
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-[17px] leading-relaxed text-muted">
-          Storyboard the whole video from one idea, cast consistent characters, and generate
-          every scene with native audio — draft cheaply, produce in 1080p or native 4K, all on
-          Seedance 2.0. One studio, from idea to finished footage.
+          Pick one of ten proven 15-second ad styles, swap in your real product, your presenter
+          and your two lines — and render a vertical, ready-to-post ad with native audio.
+          Minutes, not weeks. No briefs, no booking, no usage-rights negotiations.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <CTA href="/app">
-            <Sparkles size={18} /> Start creating
+          <CTA href="/app/ugc">
+            <Sparkles size={18} /> Make your first ad
           </CTA>
-          <CTA href="#how" variant="outline">
-            See how it works <ArrowRight size={16} />
+          <CTA href="#styles" variant="outline">
+            Browse the styles <ArrowRight size={16} />
           </CTA>
         </div>
         <p className="mt-3 text-[13px] text-faint">Plans from $19/month · 4 months on us when billed yearly · cancel anytime</p>
@@ -208,65 +209,38 @@ function Hero() {
           ))}
         </div>
 
-        {/* Hero visual — a real cut coming together in the studio */}
-        <div className="relative mx-auto mt-12 max-w-4xl">
-          <div className="overflow-hidden rounded-[22px] border border-line-2 bg-surface shadow-[0_40px_100px_-35px_rgba(16,18,27,0.5)]">
-            {/* studio window chrome */}
-            <div className="flex items-center gap-2 border-b border-line bg-surface-2/70 px-4 py-2.5">
-              <span className="flex gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-              </span>
-              <span className="ml-2 flex items-center gap-1.5 text-[12px] font-medium text-muted">
-                <Clapperboard size={13} className="text-accent-2" /> VIBVID Studio
-              </span>
-              <span className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1 text-[11px] font-semibold text-white">
-                <Download size={12} /> Download
-              </span>
-            </div>
-            {/* the finished scene, playing */}
-            <div className="relative aspect-video w-full bg-black">
-              <MediaTile m={HERO} />
-              <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white/85 backdrop-blur-md">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" /> Scene 2 · the reveal
-              </span>
-              <div className="absolute right-3 top-3 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white/85 backdrop-blur-md">
-                1080p · native audio
+        {/* Hero visual — three of the real ads, framed as phones. */}
+        <div className="relative mx-auto mt-12 max-w-3xl">
+          <div className="flex items-center justify-center gap-4 sm:gap-6">
+            {HERO_PHONES.map((p, i) => (
+              <div
+                key={p.style.id}
+                className={cn(
+                  i === 1 ? "w-56 sm:w-64" : "hidden w-48 sm:block",
+                  i === 0 && "rotate-[-3deg]",
+                  i === 2 && "rotate-[3deg]",
+                )}
+              >
+                <PhoneFrame className={i === 1 ? "z-10" : "opacity-95"}>
+                  <InViewVideo src={p.src} autoPlayEager={i === 1} className="h-full w-full object-cover" />
+                  <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2.5 pb-2 pt-8 text-left">
+                    <span className="block text-[11.5px] font-semibold text-white">{p.style.name}</span>
+                  </span>
+                </PhoneFrame>
+                <p className="mt-2 text-center text-[11px] text-faint">{p.style.setting}</p>
               </div>
-            </div>
-            {/* the timeline — four scenes stitched into one cut */}
-            <div className="border-t border-line bg-surface-2/50 px-3 py-3 sm:px-4">
-              <div className="mb-2 flex items-center justify-between text-[11px] font-medium text-faint">
-                <span className="inline-flex items-center gap-1.5">
-                  <Film size={12} className="text-accent-2" /> 4 scenes from one storyboard
-                </span>
-                <span>0:18</span>
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {HERO_TIMELINE.map((m, i) => (
-                  <div
-                    key={m.id}
-                    className={cn(
-                      "relative aspect-video overflow-hidden rounded-lg border",
-                      i === 1 ? "border-accent ring-1 ring-accent/40" : "border-line-2",
-                    )}
-                  >
-                    <MediaTile m={m} />
-                    <span className="absolute left-1 top-1 rounded bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold text-white/90">
-                      {i + 1}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
-          {/* floating cast chips */}
-          <div className="absolute -left-3 top-16 hidden rotate-[-6deg] sm:block">
-            <FloatChip m={HERO_CHIPS[0]} />
+          {/* what gets swapped in: your product, your presenter */}
+          <div className="absolute -left-6 top-10 hidden rotate-[-6deg] lg:block">
+            <FloatChip
+              m={{ id: "chip-your-product", type: "image", src: "/generated/prod-serum.jpg", label: "Glow Serum", tag: "Your product" }}
+            />
           </div>
-          <div className="absolute -right-4 top-28 hidden rotate-[5deg] sm:block">
-            <FloatChip m={HERO_CHIPS[1]} />
+          <div className="absolute -right-8 top-36 hidden rotate-[5deg] lg:block">
+            <FloatChip
+              m={{ id: "chip-your-presenter", type: "image", src: "/generated/cast-desert-nomad.jpg", label: "Cast once, reuse forever", tag: "Your presenter" }}
+            />
           </div>
         </div>
       </div>
@@ -285,6 +259,122 @@ function FloatChip({ m }: { m: ShowcaseMedia }) {
         <span className="block text-[13px] font-semibold text-fg">{m.label}</span>
       </span>
     </div>
+  );
+}
+
+/* ---------------------------- UGC style library --------------------------- */
+/* The proof: all ten real, unedited renders — each a complete 15-second ad
+   shot in a real place. Copying one is the product's core loop. */
+
+function UgcStyleLibrary() {
+  const tiles = UGC_STYLES.map((s) => ({ s, src: generatedSrc(s.id) })).filter(
+    (t): t is { s: (typeof UGC_STYLES)[number]; src: string } => !!t.src,
+  );
+  return (
+    <section id="styles" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-2xl text-center">
+        <Badge tone="accent" className="mb-3">The style library</Badge>
+        <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+          Ten ads, already directed. Yours to copy.
+        </h2>
+        <p className="mt-3 text-[17px] text-muted">
+          Every video below is a real, unedited render — a complete 15-second ad shot in a real
+          place with its own beats and spoken lines. Copy a style and the direction stays; the
+          product, the presenter and the lines become yours.
+        </p>
+      </div>
+      <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        {tiles.map(({ s, src }) => (
+          <UgcStyleTile key={s.id} id={s.id} name={s.name} setting={s.setting} hook={s.demo.open} src={src} />
+        ))}
+      </div>
+      <div className="mt-8 flex flex-col items-center gap-3">
+        <p className="text-[13px] text-faint">
+          All ten rendered with VIBVID from the scripts in the library — no editing, no post.
+        </p>
+        <CTA href="/app/ugc" size="md">
+          Open the style library <ArrowRight size={16} />
+        </CTA>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------ UGC economics ----------------------------- */
+
+const COMPARE_ROWS: { row: string; creator: string; vibvid: string }[] = [
+  {
+    row: "Cost per ad",
+    creator: "Typically $150–$400+ per video",
+    vibvid: "From ≈ $7 of your monthly credits (≈ $13 in Full HD)",
+  },
+  {
+    row: "Turnaround",
+    creator: "1–2 weeks — sourcing, briefing, shipping product, waiting",
+    vibvid: "Minutes — each render takes about 30–90 seconds",
+  },
+  {
+    row: "Changing one line",
+    creator: "A re-brief, sometimes a re-shoot",
+    vibvid: "Edit the line, render again",
+  },
+  {
+    row: "Testing 5 hooks",
+    creator: "5 briefs, 5 invoices",
+    vibvid: "5 renders on one Pro month",
+  },
+  {
+    row: "Usage rights",
+    creator: "Licensed, often time-limited",
+    vibvid: "Commercial rights included on every plan",
+  },
+  {
+    row: "Same face next month",
+    creator: "If they're available and still on brand",
+    vibvid: "Always — the presenter is your character",
+  },
+];
+
+function UgcEconomics() {
+  return (
+    <section id="compare" className="border-y border-line bg-surface-2/40">
+      <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            The math is the whole pitch.
+          </h2>
+          <p className="mt-3 text-[17px] text-muted">
+            Creator content converts — sourcing creators is what doesn&rsquo;t scale. Keep the
+            format, drop the logistics.
+          </p>
+        </div>
+        <div className="mt-10 overflow-hidden rounded-[var(--radius-xl2)] border border-line bg-surface">
+          <div className="grid grid-cols-[1fr_1.2fr_1.2fr] border-b border-line bg-surface-2/60 text-[12px] font-semibold uppercase tracking-wider text-faint sm:text-[12.5px]">
+            <div className="px-3 py-3 sm:px-5" />
+            <div className="px-3 py-3 sm:px-5">Booking a UGC creator</div>
+            <div className="px-3 py-3 text-accent-2 sm:px-5">VIBVID</div>
+          </div>
+          {COMPARE_ROWS.map((r) => (
+            <div key={r.row} className="grid grid-cols-[1fr_1.2fr_1.2fr] border-b border-line text-[13px] leading-snug last:border-b-0 sm:text-[13.5px]">
+              <div className="px-3 py-3.5 font-semibold text-fg sm:px-5">{r.row}</div>
+              <div className="px-3 py-3.5 text-muted sm:px-5">{r.creator}</div>
+              <div className="px-3 py-3.5 font-medium text-fg sm:px-5">{r.vibvid}</div>
+            </div>
+          ))}
+        </div>
+        <p className="mx-auto mt-4 max-w-3xl text-center text-[12px] leading-relaxed text-faint">
+          Creator prices are typical market rates for a single short UGC video and vary widely.
+          VIBVID figures assume a 15-second ad rendered in 720p HD (135 credits) on the Pro plan —
+          $39 for 800 credits per month. Presenters are original AI characters, not real people;
+          follow each platform&rsquo;s rules on disclosing AI-generated content.
+        </p>
+        <div className="mt-6 flex justify-center">
+          <CTA href="#pricing" size="md">
+            See plans <ArrowRight size={16} />
+          </CTA>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -325,6 +415,7 @@ function SeedanceBand() {
               fast drafts, <strong className="font-semibold text-fg">Pro</strong> for cinematic
               1080p, and native <strong className="font-semibold text-fg">4K</strong> — with
               Seedream drawing your storyboards, characters and stills on the same stack.
+              It&rsquo;s why the ads above read as filmed, not generated.
             </p>
             <div className="mt-5 inline-flex flex-wrap items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-muted">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -378,8 +469,11 @@ function Features() {
   return (
     <section id="features" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
-        <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">One studio, the whole production</h2>
-        <p className="mt-3 text-[17px] text-muted">From idea to finished video — board it, cast it, and generate it all in one place.</p>
+        <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">There&rsquo;s a whole studio underneath</h2>
+        <p className="mt-3 text-[17px] text-muted">
+          UGC ads are one workflow. The same studio storyboards, casts and shoots anything —
+          product films, explainers, brand spots, whole seasons.
+        </p>
       </div>
       <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {FEATURES.map((f) => (
@@ -397,10 +491,9 @@ function Features() {
 }
 
 const STEPS = [
-  { n: "1", icon: LayoutGrid, title: "Board", body: "Give the Storyboard your product and idea, pick a length — it writes the whole commercial scene by scene and draws it as one nine-panel sheet." },
-  { n: "2", icon: Layers, title: "Cast & collect", body: "Create characters, and drop your product shots, clips, sound and scripts into Assets — the raw material of every shot." },
-  { n: "3", icon: Wand2, title: "Generate", body: "Attach the board and your cast in the Studio, pick a Seedance 2.0 tier — Mini, Pro or 4K — clean the prompt up, and generate. Every video lands in My Videos." },
-  { n: "4", icon: Download, title: "Publish", body: "Download your scenes — each keeps its full production record, so you can remix or reproduce any of them in one tap — and post them anywhere." },
+  { n: "1", icon: LayoutGrid, title: "Pick a style", body: "Ten proven 15-second formats — the front-seat review, the bus whisper, the mirror routine. Each is a complete shooting script rendered in a real place." },
+  { n: "2", icon: Wand2, title: "Make it yours", body: "Swap in your product from a few photos, design your presenter, and write two spoken lines — the opener and the closer. The direction, setting and rhythm stay proven." },
+  { n: "3", icon: Download, title: "Render and post", body: "Generate in 9:16 with native audio. Draft a variation cheaply to test the hook, produce the winner in HD, and post it to TikTok, Reels or Shorts." },
 ];
 
 function Steps() {
@@ -408,10 +501,10 @@ function Steps() {
     <section id="how" className="border-y border-line bg-surface-2/40">
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">From idea to a finished cut in four steps</h2>
-          <p className="mt-3 text-[17px] text-muted">Simple enough for a first-timer, deep enough for a real production.</p>
+          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">From style to posted ad in three steps</h2>
+          <p className="mt-3 text-[17px] text-muted">No briefs. No shoots. No waiting on a creator&rsquo;s calendar.</p>
         </div>
-        <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-3">
           {STEPS.map((s) => (
             <div key={s.n} className="relative rounded-[var(--radius-xl2)] border border-line bg-surface p-6">
               <div className="flex items-center gap-3">
@@ -422,6 +515,11 @@ function Steps() {
               <p className="mt-2 text-[14px] leading-relaxed text-muted">{s.body}</p>
             </div>
           ))}
+        </div>
+        <div className="mt-8 flex justify-center">
+          <CTA href="/app/ugc" size="md">
+            Start with a style <ArrowRight size={16} />
+          </CTA>
         </div>
       </div>
     </section>
@@ -610,13 +708,14 @@ function CharacterConsistency() {
   return (
     <section id="characters" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
-        <Badge tone="accent" className="mb-3">Consistent characters</Badge>
+        <Badge tone="accent" className="mb-3">Your presenter</Badge>
         <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-          Cast once. Star them in every video.
+          Cast a presenter once. Same face in every ad.
         </h2>
         <p className="mt-3 text-[17px] text-muted">
-          The hardest part of AI video is keeping a face the same twice. Create a character once and
-          VIBVID locks their identity — so one cast member can carry a whole series of videos.
+          Audiences trust a familiar face — and the hardest part of AI video is keeping one.
+          Create your presenter once and VIBVID locks their identity, so the person fronting your
+          car-seat ad this week fronts your kitchen ad next month.
         </p>
       </div>
 
@@ -677,9 +776,9 @@ function CharacterConsistency() {
           <div className="mt-4 rounded-2xl border border-line bg-surface-2/60 p-4 text-[13px] leading-relaxed text-muted">
             <span className="font-semibold text-fg">How it works: </span>
             open <span className="font-medium text-fg">Characters</span>, create {c.name} from a selfie or
-            a description, then cast them into any shot in the{" "}
-            <span className="font-medium text-fg">Studio</span>. Reuse the same character across
-            unlimited videos — perfect for a recurring host, mascot, or series lead.
+            a description, then cast them into any UGC style or{" "}
+            <span className="font-medium text-fg">Studio</span> shot. The same presenter carries
+            every ad your brand runs — a face your audience starts to recognise.
           </div>
         </div>
       </div>
@@ -1040,6 +1139,22 @@ export function Pricing() {
 
 const FAQS = [
   {
+    q: "Do AI UGC ads actually look real?",
+    a: "Judge for yourself — every example in the style library on this page is an unedited render. The styles are directed like real creator videos: handheld phone framing, real settings, imperfect motion, native audio. The presenters are original AI characters, not real people — VIBVID never impersonates anyone, and you should follow each platform's rules on labelling AI-generated content.",
+  },
+  {
+    q: "Can the ad show my actual product?",
+    a: "Yes. Add your product in the Products studio from a few photos and it gets a reference sheet that steers every scene — the serum in the ad is your serum, with your label, not a lookalike.",
+  },
+  {
+    q: "How fast can I get my first ad?",
+    a: "Minutes. Pick a style, swap in your product, presenter and two spoken lines, and generate — each render takes about 30–90 seconds. Most people go from sign-up to a finished, postable 15-second vertical ad in their first session.",
+  },
+  {
+    q: "How many ads does my plan cover?",
+    a: "A 15-second ad is 135 credits in 720p HD or 270 in Full-HD 1080p. That's about 2 ads a month on Creator, 5 on Pro and 11 on Agency in HD — half that in Full HD. Drafts cost ~45 credits, so test variations cheaply before producing the winner. Credits also cover everything else the studio makes.",
+  },
+  {
     q: "What model powers VIBVID?",
     a: "Seedance 2.0, by ByteDance — the go-to AI video model, known for cinematic motion, native audio and native 4K. VIBVID runs it in three tiers (Mini, Pro, 4K) and pairs it with Seedream for storyboards, characters and stills, so your whole production runs on one state-of-the-art stack.",
   },
@@ -1127,17 +1242,18 @@ function FinalCTA() {
           <path d="M32 22 L78 50 L32 78 Z" fill="currentColor" />
         </svg>
         <h2 className="mx-auto max-w-2xl font-display text-3xl font-bold tracking-tight sm:text-4xl">
-          Start producing today
+          Your first ad is one style away.
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-[16px] text-white/85">
-          Spin up your studio in seconds — plans from $19/month, 4 months on us when billed yearly, cancel anytime.
+          Pick a style, swap in your product, and post a finished UGC ad today — plans from
+          $19/month, 4 months on us when billed yearly, cancel anytime.
         </p>
         <div className="mt-7 flex justify-center">
           <Link
-            href="/app"
+            href="/app/ugc"
             className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-white px-7 text-[15px] font-semibold text-accent transition-transform hover:scale-[1.02]"
           >
-            <Sparkles size={18} /> Create your first video
+            <Sparkles size={18} /> Make your first UGC ad
           </Link>
         </div>
       </div>
@@ -1149,10 +1265,11 @@ const FOOTER_COLS: { heading: string; links: { label: string; href: string }[] }
   {
     heading: "Product",
     links: [
-      { label: "Features", href: "/#features" },
+      { label: "UGC styles", href: "/#styles" },
       { label: "How it works", href: "/#how" },
-      { label: "Characters", href: "/#characters" },
-      { label: "Seasons & series", href: "/#longform" },
+      { label: "Compare", href: "/#compare" },
+      { label: "Your presenter", href: "/#characters" },
+      { label: "The studio", href: "/#features" },
       { label: "Pricing", href: "/pricing" },
       { label: "Launch studio", href: APP },
     ],
@@ -1184,8 +1301,9 @@ export function Footer() {
           <div className="max-w-sm">
             <Brand />
             <p className="mt-4 text-[13.5px] leading-relaxed text-faint">
-              The AI video studio. Storyboard the video, cast consistent characters, and generate
-              every scene in up to native 4K with audio — from idea to finished footage, one place.
+              The AI UGC ad studio. Pick a proven style, swap in your product and presenter, and
+              render vertical ads with native audio — plus a full video studio underneath, up to
+              native 4K.
             </p>
             <div className="mt-5 flex flex-col gap-2.5">
               <a
@@ -1255,16 +1373,18 @@ export function Landing() {
       <Header />
       <main>
         <Hero />
-        <SeedanceBand />
-        <Features />
+        <UgcStyleLibrary />
         <Steps />
-        <ElementBand />
+        <UgcEconomics />
         <CharacterConsistency />
+        <Pricing />
+        <Features />
+        <SeedanceBand />
+        <ElementBand />
         <UseCases />
         <LongForm />
         <Showcase />
         <ResponsibleAI />
-        <Pricing />
         <FAQ />
         <FinalCTA />
       </main>

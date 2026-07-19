@@ -62,8 +62,13 @@ export function UgcStudio() {
   const subscribed = useStore((s) => s.subscribed);
   const setAuthOpen = useStore((s) => s.setAuthOpen);
 
-  /** The chosen library style — null shows the library. */
-  const [styleId, setStyleId] = useState<string | null>(null);
+  /** The chosen library style — null shows the library. Landing tiles deep-link
+   *  a style via ?style=<id>, so the builder opens ready to copy it. */
+  const [styleId, setStyleId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const s = new URLSearchParams(window.location.search).get("style");
+    return s && UGC_STYLES.some((x) => x.id === s) ? s : null;
+  });
   /** Which library card is playing inline. */
   const [playingId, setPlayingId] = useState<string | null>(null);
   // Builder inputs — blank fields fall back to the style's demo values.
