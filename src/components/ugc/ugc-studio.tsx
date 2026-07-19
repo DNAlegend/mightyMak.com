@@ -6,8 +6,7 @@
 // the ad's direction, setting and rhythm carry over while you swap in YOUR
 // product, YOUR presenter (a saved character or a described one) and YOUR
 // spoken lines — then the clip renders right here on the Seedance tier you
-// pick. The iPhone-app and screen-demo formats keep their proven script
-// templates.
+// pick. Product ads only for now — app and screen formats come later.
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -15,34 +14,21 @@ import {
   ArrowLeft,
   Check,
   Coins,
-  Film,
-  ImagePlus,
   Loader2,
   MapPin,
   Megaphone,
   Package,
   Play,
-  Smartphone,
   Sparkles,
   UserRound,
-  X,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { cloudConfigured } from "@/lib/supabase";
 import { getModel, videoRate } from "@/lib/models";
-import { uploadDataUrl } from "@/lib/cloud";
 import { generatedSrc } from "@/lib/demo-content";
-import {
-  UGC_STYLES,
-  UGC_TEMPLATES,
-  UGC_FORMATS,
-  type UgcFormat,
-  type UgcStyle,
-  type UgcStyleInputs,
-  type UgcTemplate,
-} from "@/lib/ugc-templates";
+import { UGC_STYLES, type UgcStyle, type UgcStyleInputs } from "@/lib/ugc-templates";
 import type { Asset } from "@/lib/types";
-import { cn, uid } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Badge, Button, Card, Progress } from "@/components/ui";
 
 const textareaCls =
@@ -76,8 +62,7 @@ export function UgcStudio() {
   const subscribed = useStore((s) => s.subscribed);
   const setAuthOpen = useStore((s) => s.setAuthOpen);
 
-  const [format, setFormat] = useState<UgcFormat>("product");
-  /** The chosen library style (product format) — null shows the library. */
+  /** The chosen library style — null shows the library. */
   const [styleId, setStyleId] = useState<string | null>(null);
   /** Which library card is playing inline. */
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -94,12 +79,6 @@ export function UgcStudio() {
   const lastAuto = useRef("");
   const [tier, setTier] = useState<UgcTier>("pro");
   const [jobId, setJobId] = useState<string | null>(null);
-  // iPhone/screen formats keep the template flow.
-  const [templateId, setTemplateId] = useState<string | null>(null);
-  const [shots, setShots] = useState<{ url: string; name: string }[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const shotRef = useRef<HTMLInputElement>(null);
 
   const products = useMemo(
     () => assets.filter((a) => a.class === "product" && (a.parts?.length ?? 0) > 0),
@@ -114,11 +93,10 @@ export function UgcStudio() {
   const locked = cloudConfigured && subscribed === false;
 
   const style = styleId ? UGC_STYLES.find((s) => s.id === styleId) ?? null : null;
-  const template = templateId ? UGC_TEMPLATES.find((t) => t.id === templateId) ?? null : null;
   const product = productId ? byId[productId] : null;
   const presenter = presenterId ? byId[presenterId] : null;
 
-  const durationSec = format === "product" ? style?.durationSec ?? 15 : template?.durationSec ?? 12;
+  const durationSec = style?.durationSec ?? 15;
   const model = getModel(TIERS[tier].modelId);
   const cost = videoRate(model, TIERS[tier].resolution) * durationSec;
   const canAfford = credits >= cost;
@@ -162,52 +140,18 @@ export function UgcStudio() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function stageShots(files: FileList | null) {
-    if (!files?.length) return;
-    if (needsSignIn) {
-      setAuthOpen(true);
-      return;
-    }
-    setUploading(true);
-    setUploadError(null);
-    try {
-      for (const file of Array.from(files).slice(0, 3 - shots.length)) {
-        if (file.size > 8 * 1024 * 1024) {
-          setUploadError("Screenshots must be under 8 MB.");
-          continue;
-        }
-        const dataUrl = await new Promise<string>((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result as string);
-          r.onerror = rej;
-          r.readAsDataURL(file);
-        });
-        let url = await uploadDataUrl(uid("ugcshot"), dataUrl);
-        if (!url && !cloudConfigured) url = dataUrl;
-        if (!url) {
-          setUploadError("Upload failed — try again.");
-          continue;
-        }
-        setShots((s) => [...s, { url, name: file.name.replace(/\.[^.]+$/, "") }].slice(0, 3));
-      }
-    } finally {
-      setUploading(false);
-      if (shotRef.current) shotRef.current.value = "";
-    }
-  }
-
   /** References + legend in the exact order Seedance receives them. */
   function buildReferences(): { urls: string[]; legend: string[] } {
     const urls: string[] = [];
     const legend: string[] = [];
     const slot = () => `Image ${urls.length}`;
-    if (presenter && format !== "screen" && /^https:\/\//i.test(presenter.url)) {
+    if (presenter && /^https:\/\//i.test(presenter.url)) {
       urls.push(presenter.url);
       legend.push(
         `${slot()} is the character sheet of "${presenter.name}" — this exact person is the creator on camera; copy the face, hair and build exactly.`,
       );
     }
-    if (format === "product" && product) {
+    if (product) {
       for (const u of productPhotoUrls(product)) {
         urls.push(u);
         legend.push(
@@ -215,22 +159,11 @@ export function UgcStudio() {
         );
       }
     }
-    if (format !== "product") {
-      shots.forEach((s, i) => {
-        if (!/^https:\/\//i.test(s.url)) return;
-        urls.push(s.url);
-        legend.push(
-          format === "iphone"
-            ? `${slot()} is screenshot ${i + 1} of the app — the iPhone screen in the video shows exactly this interface; reproduce it faithfully.`
-            : `${slot()} is screen ${i + 1} of the product — the on-screen interface is exactly this; reproduce it faithfully and invent no other UI.`,
-        );
-      });
-    }
     return { urls: urls.slice(0, 9), legend };
   }
 
   function onGenerate() {
-    const text = format === "product" ? effectiveScript : script;
+    const text = effectiveScript;
     if (rendering || !text.trim()) return;
     if (needsSignIn) {
       setAuthOpen(true);
@@ -243,10 +176,7 @@ export function UgcStudio() {
     if (!canAfford) return;
     const { urls, legend } = buildReferences();
     const t = TIERS[tier];
-    const label =
-      format === "product"
-        ? `UGC — ${style?.name ?? "ad"} — ${productName.trim() || product?.name || style?.demo.product || "ad"}`
-        : `UGC — ${template?.name ?? "ad"} — ${productName.trim() || "ad"}`;
+    const label = `UGC — ${style?.name ?? "ad"} — ${productName.trim() || product?.name || style?.demo.product || "ad"}`;
     const id = generate({
       prompt: legend.length ? `${legend.join(" ")}\n\n${text}` : text,
       tier: "standard",
@@ -257,17 +187,15 @@ export function UgcStudio() {
       modality: "video",
       elements: [presenterId, productId].filter(Boolean) as string[],
       direction: label,
-      posterUrl: product?.posterUrl ?? shots[0]?.url,
+      posterUrl: product?.posterUrl,
       resolution: t.resolution,
       refImageUrls: urls.length ? urls : undefined,
     });
     setJobId(id);
   }
 
-  const needsMedia =
-    format === "product" ? !product && !productName.trim() : shots.length === 0;
-  const readyText = format === "product" ? effectiveScript : script;
-  const canGenerate = hydrated && readyText.trim().length > 0 && canAfford && !needsMedia;
+  const needsMedia = !product && !productName.trim();
+  const canGenerate = hydrated && effectiveScript.trim().length > 0 && canAfford && !needsMedia;
 
   /* --------------------------------- UI --------------------------------- */
 
@@ -281,32 +209,8 @@ export function UgcStudio() {
         </p>
       </header>
 
-      {/* Format switch */}
-      <div className="mb-5 flex flex-wrap gap-2">
-        {UGC_FORMATS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => {
-              setFormat(f.key);
-              setTemplateId(null);
-              setStyleId(null);
-              setScript("");
-              lastAuto.current = "";
-            }}
-            title={f.blurb}
-            className={cn(
-              "flex items-center gap-2 rounded-xl border px-3.5 py-2 text-[13px] font-medium transition-colors",
-              format === f.key ? "border-accent bg-accent-soft text-fg" : "border-line text-muted hover:border-line-2",
-            )}
-          >
-            {f.key === "product" ? <Package size={15} /> : f.key === "iphone" ? <Smartphone size={15} /> : <Film size={15} />}
-            {f.label}
-          </button>
-        ))}
-      </div>
-
       {/* ============================ PRODUCT WORLD ============================ */}
-      {format === "product" && !style && (
+      {!style && (
         <>
           <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wider text-faint">
             The style library — real ads, real places. Copy one.
@@ -359,7 +263,7 @@ export function UgcStudio() {
         </>
       )}
 
-      {format === "product" && style && (
+      {style && (
         <>
           <button
             onClick={() => {
@@ -638,221 +542,6 @@ export function UgcStudio() {
         </>
       )}
 
-      {/* ======================== IPHONE / SCREEN FORMATS ======================= */}
-      {format !== "product" && (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,400px)_1fr]">
-          <Card className="h-fit p-5">
-            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent-2">
-              <Megaphone size={14} /> New {format === "iphone" ? "app" : "screen"} ad
-            </div>
-
-            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-faint">
-              {format === "iphone" ? "App screenshots" : "Screen shots"}{" "}
-              <span className="normal-case">(up to 3 — shown exactly in the video)</span>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {shots.map((s, i) => (
-                <span key={s.url} className="relative h-16 w-12 overflow-hidden rounded-lg border border-line">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.url} alt={s.name} className="h-full w-full object-cover" />
-                  <button
-                    onClick={() => setShots((x) => x.filter((_, j) => j !== i))}
-                    className="absolute right-0 top-0 rounded-bl-lg bg-black/60 p-1 text-white"
-                    aria-label="Remove screenshot"
-                  >
-                    <X size={10} />
-                  </button>
-                </span>
-              ))}
-              {shots.length < 3 && (
-                <button
-                  onClick={() => shotRef.current?.click()}
-                  disabled={uploading}
-                  className="flex h-16 w-12 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-line-2 text-faint transition-colors hover:border-accent/50 hover:text-accent-2"
-                >
-                  {uploading ? <Loader2 size={14} className="animate-spin" /> : <ImagePlus size={14} />}
-                </button>
-              )}
-              <input ref={shotRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => stageShots(e.target.files)} />
-            </div>
-            {uploadError && <p className="mt-1.5 text-xs text-danger">{uploadError}</p>}
-
-            {format === "iphone" && (
-              <>
-                <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
-                  Presenter <span className="normal-case">(optional)</span>
-                </label>
-                {characters.length === 0 ? (
-                  <button
-                    onClick={() => router.push("/app/characters")}
-                    className="flex w-full items-center gap-2 rounded-xl border border-dashed border-line-2 px-3 py-2 text-left text-[12.5px] text-muted transition-colors hover:border-accent/50 hover:text-fg"
-                  >
-                    <UserRound size={14} className="text-accent-2" /> Create a character — or let the model cast one
-                  </button>
-                ) : (
-                  <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                    {characters.map((c) => {
-                      const on = presenterId === c.id;
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => setPresenterId(on ? null : c.id)}
-                          className={cn(
-                            "flex shrink-0 items-center gap-2 rounded-xl border py-1.5 pl-1.5 pr-3 text-[12px] font-medium transition-colors",
-                            on ? "border-accent bg-accent-soft text-fg" : "border-line text-muted hover:border-line-2",
-                          )}
-                        >
-                          <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-surface-2">
-                            {c.posterUrl || c.url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={c.posterUrl ?? c.url} alt={c.name} className="h-full w-full object-cover" />
-                            ) : (
-                              <UserRound size={14} className="m-auto text-faint" />
-                            )}
-                            {on && (
-                              <span className="absolute inset-0 flex items-center justify-center bg-accent/70 text-white">
-                                <Check size={13} />
-                              </span>
-                            )}
-                          </span>
-                          {c.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-
-            <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
-              App / product name
-            </label>
-            <input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="SleepWell" className={inputCls} />
-            <label className="mb-1.5 mt-3 block text-xs font-medium uppercase tracking-wide text-faint">
-              The benefit
-            </label>
-            <input value={benefit} onChange={(e) => setBenefit(e.target.value)} placeholder="I fall asleep in ten minutes now" className={inputCls} />
-
-            <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-faint">
-              Renders on
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(TIERS) as UgcTier[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTier(t)}
-                  className={cn(
-                    "rounded-lg border px-2.5 py-1 text-[12px] font-medium transition-colors",
-                    tier === t ? "border-accent bg-accent-soft text-fg" : "border-line text-muted hover:border-line-2",
-                  )}
-                >
-                  Seedance 2.0 {TIERS[t].label}
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          <div className="space-y-4">
-            <div>
-              <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-wider text-faint">
-                Proven scripts — tap one, it fills in your product
-              </h2>
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                {UGC_TEMPLATES.filter((t) => t.format === format).map((t) => {
-                  const on = templateId === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => {
-                        setTemplateId(t.id);
-                        setScript(
-                          t.script({
-                            product: productName.trim() || "the app",
-                            benefit: benefit.trim() || "it just works",
-                          }),
-                        );
-                      }}
-                      className={cn(
-                        "rounded-xl border p-3.5 text-left transition-colors",
-                        on ? "border-accent bg-accent-soft" : "border-line bg-surface hover:border-line-2",
-                      )}
-                    >
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="text-[13.5px] font-bold text-fg">{t.name}</span>
-                        <Badge tone="neutral">{t.durationSec}s</Badge>
-                      </span>
-                      <span className="mt-0.5 block text-[11.5px] leading-snug text-muted">{t.tagline}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {template && (
-              <Card className="p-5">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent-2">
-                    <Megaphone size={14} /> {template.name} — your script
-                  </div>
-                  <Badge tone="neutral">9:16 · {template.durationSec}s</Badge>
-                </div>
-                <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={12} className={textareaCls} />
-                <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-sm">
-                  <span className="text-muted">Cost</span>
-                  <span className="flex items-center gap-1.5 font-semibold">
-                    <Coins size={15} className="text-warn" /> {cost} credits
-                  </span>
-                </div>
-                {needsSignIn ? (
-                  <Button size="lg" className="mt-3 w-full" onClick={() => setAuthOpen(true)}>
-                    <Sparkles size={17} /> Sign in to generate
-                  </Button>
-                ) : (
-                  <Button size="lg" className="mt-3 w-full" disabled={rendering || (!locked && !canGenerate)} onClick={onGenerate}>
-                    {rendering ? (
-                      <>
-                        <Loader2 size={17} className="animate-spin" /> Shooting the ad…
-                      </>
-                    ) : locked ? (
-                      <>
-                        <Sparkles size={17} /> Subscribe to generate
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={17} /> Generate the ad
-                      </>
-                    )}
-                  </Button>
-                )}
-                {needsMedia && (
-                  <p className="mt-2 text-center text-xs text-faint">Add at least one screenshot — it becomes the screen in the video.</p>
-                )}
-              </Card>
-            )}
-
-            {job && (
-              <Card className="overflow-hidden">
-                {rendering ? (
-                  <div className="shimmer flex aspect-[9/16] max-h-[480px] w-full flex-col items-center justify-center bg-surface-2">
-                    <Loader2 size={20} className="animate-spin text-accent-2" />
-                    <div className="mt-3 w-32">
-                      <Progress value={job.progress} />
-                    </div>
-                  </div>
-                ) : videoUrl ? (
-                  <div className="p-3">
-                    {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                    <video src={videoUrl} poster={job.posterUrl ?? undefined} controls playsInline className="mx-auto max-h-[480px] rounded-xl border border-line" />
-                    <p className="mt-2 text-center text-[12px] text-faint">Saved to My Videos with its full production record.</p>
-                  </div>
-                ) : (
-                  <div className="p-4 text-center text-sm text-danger">{job.error ?? "The ad failed — try again."}</div>
-                )}
-              </Card>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
