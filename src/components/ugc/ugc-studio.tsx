@@ -8,9 +8,9 @@
 // spoken lines — then the clip renders right here on the Seedance tier you
 // pick. Product ads only for now — app and screen formats come later.
 
-import { useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { cloudConfigured } from "@/lib/supabase";
-import { getModel, videoRate } from "@/lib/models";
+import { getModel, priceFor } from "@/lib/models";
 import { generatedSrc } from "@/lib/demo-content";
 import { UGC_STYLES, type UgcStyle, type UgcStyleInputs } from "@/lib/ugc-templates";
 import type { Asset } from "@/lib/types";
@@ -54,7 +54,16 @@ function productPhotoUrls(p: Asset): string[] {
     .slice(0, 3);
 }
 
+/** useSearchParams needs a Suspense boundary above it during prerender. */
 export function UgcStudio() {
+  return (
+    <Suspense fallback={null}>
+      <UgcStudioInner />
+    </Suspense>
+  );
+}
+
+function UgcStudioInner() {
   const router = useRouter();
   const assets = useStore((s) => s.assets);
   const videos = useStore((s) => s.videos);
@@ -66,10 +75,12 @@ export function UgcStudio() {
   const setAuthOpen = useStore((s) => s.setAuthOpen);
 
   /** The chosen library style — null shows the library. Landing tiles deep-link
-   *  a style via ?style=<id>, so the builder opens ready to copy it. */
+   *  a style via ?style=<id>, so the builder opens ready to copy it. Read via
+   *  useSearchParams (NOT window.location, which is stale during client-side
+   *  navigation renders and hydration-mismatches on SSR). */
+  const search = useSearchParams();
   const [styleId, setStyleId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    const s = new URLSearchParams(window.location.search).get("style");
+    const s = search.get("style");
     return s && UGC_STYLES.some((x) => x.id === s) ? s : null;
   });
   /** Which library card is playing inline. */
@@ -106,7 +117,13 @@ export function UgcStudio() {
 
   const durationSec = style?.durationSec ?? 15;
   const model = getModel(TIERS[tier].modelId);
-  const cost = videoRate(model, TIERS[tier].resolution) * durationSec;
+  // Priced exactly as the store will charge: a saved product/presenter rides
+  // as elements, which adds the reference surcharge.
+  const cost = priceFor(model, {
+    durationSec,
+    resolution: TIERS[tier].resolution,
+    hasRefs: Boolean(productId || presenterId),
+  });
   const canAfford = credits >= cost;
 
   const job = jobId ? videos.find((v) => v.id === jobId) ?? null : null;

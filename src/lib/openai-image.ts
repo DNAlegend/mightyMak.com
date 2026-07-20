@@ -16,6 +16,41 @@ function sizeFor(aspectRatio: string): string {
   return w >= h ? "1536x1024" : "1024x1536";
 }
 
+/** Max bytes accepted per reference image download. */
+const REF_MAX_BYTES = 12 * 1024 * 1024;
+/** The OpenAI render must finish well under the route's 300s ceiling so a
+ *  slow render fails INSIDE the handler (where the refund runs) rather than
+ *  being killed by the platform with the debit stranded. */
+const RENDER_TIMEOUT_MS = 240_000;
+
+/**
+ * A reference URL we're willing to fetch server-side: plain https to a
+ * public host — no credentials, no ports, no IP literals, no loopback or
+ * private/link-local names. This fetch runs with OUR egress, so it must
+ * never become a probe into internal networks.
+ */
+function safeRefUrl(raw: string): URL | null {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:" || u.username || u.password || u.port) return null;
+  const host = u.hostname.toLowerCase();
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal") ||
+    /^\d+\.\d+\.\d+\.\d+$/.test(host) || // any IPv4 literal
+    host.includes(":") // any IPv6 literal
+  ) {
+    return null;
+  }
+  return u;
+}
+
 /**
  * Generate one image and return the PNG bytes, or throw with the API's error
  * message. Reference images (public URLs) are fetched and forwarded to the
@@ -40,9 +75,27 @@ export async function openaiGenerateImage(opts: {
     form.append("size", size);
     form.append("quality", "high");
     for (const [i, url] of refs.entries()) {
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(`Reference image unreachable (${r.status})`);
+      const safe = safeRefUrl(url);
+      if (!safe) throw new Error("A reference image URL is not allowed");
+      let r: Response;
+      try {
+        // No redirects: a public image doesn't need them, and following one
+        // would let a redirecting host steer this fetch somewhere private.
+        r = await fetch(safe, { redirect: "error", signal: AbortSignal.timeout(20_000) });
+      } catch (e) {
+        console.warn("[openai-image] ref fetch failed:", safe.hostname, e instanceof Error ? e.message : e);
+        throw new Error("A reference image could not be fetched");
+      }
+      if (!r.ok) {
+        // Log the status server-side; never echo it to the caller (that
+        // would make this an internal-network status oracle).
+        console.warn("[openai-image] ref fetch status", r.status, "from", safe.hostname);
+        throw new Error("A reference image could not be fetched");
+      }
+      const len = Number(r.headers.get("content-length") ?? 0);
+      if (len > REF_MAX_BYTES) throw new Error("A reference image is too large");
       const blob = await r.blob();
+      if (blob.size > REF_MAX_BYTES) throw new Error("A reference image is too large");
       const type = blob.type && blob.type.startsWith("image/") ? blob.type : "image/png";
       const ext = type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
       form.append("image[]", new File([blob], `ref-${i + 1}.${ext}`, { type }));
@@ -51,12 +104,14 @@ export async function openaiGenerateImage(opts: {
       method: "POST",
       headers: { Authorization: `Bearer ${key}` },
       body: form,
+      signal: AbortSignal.timeout(RENDER_TIMEOUT_MS),
     });
   } else {
     res = await fetch(`${OPENAI_BASE}/images/generations`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: opts.model, prompt: opts.prompt, size, quality: "high" }),
+      signal: AbortSignal.timeout(RENDER_TIMEOUT_MS),
     });
   }
 
