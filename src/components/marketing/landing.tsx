@@ -34,6 +34,7 @@ import {
 } from "@/lib/showcase";
 import { UGC_STYLES } from "@/lib/ugc-templates";
 import { InViewVideo, PhoneFrame, UgcStyleTile } from "@/components/marketing/ugc-phone";
+import { SupportForm } from "@/components/support/support-view";
 import { generatedSrc, type DemoItem } from "@/lib/demo-content";
 import { CLASS_BY_KEY, elementsByClass, thumbFor, type StudioElement } from "@/lib/catalog";
 import type { AssetClass } from "@/lib/types";
@@ -1212,6 +1213,28 @@ export function FAQ({ items = FAQS }: { items?: { q: string; a: string }[] }) {
   );
 }
 
+function Support() {
+  return (
+    <section id="support" className="border-t border-line">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 lg:grid-cols-[1fr_minmax(0,480px)] lg:items-start">
+        <div>
+          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            Stuck on something? Talk to us.
+          </h2>
+          <p className="mt-4 max-w-md text-[15.5px] leading-relaxed text-muted">
+            Billing, a render that came out wrong, a plan question — raise a ticket and a human
+            reads it. We reply to your email, usually within a day. Signed-in creators can also
+            track their tickets under Support inside the app.
+          </p>
+        </div>
+        <div className="rounded-[20px] border border-line bg-surface p-6 shadow-sm">
+          <SupportForm />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function FinalCTA() {
   return (
     <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
@@ -1268,6 +1291,7 @@ const FOOTER_COLS: { heading: string; links: { label: string; href: string }[] }
     links: [
       { label: "Responsible AI", href: "/#responsible" },
       { label: "FAQ", href: "/#faq" },
+      { label: "Support", href: "/#support" },
     ],
   },
 ];
@@ -1361,6 +1385,7 @@ export function Landing() {
         <Pricing />
         <ResponsibleAI />
         <FAQ />
+        <Support />
         <FinalCTA />
       </main>
       <Footer />

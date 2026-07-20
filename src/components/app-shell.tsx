@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, ArrowRight, Clapperboard, Film, FolderOpen, LayoutGrid, LogOut, Loader2, Mail, Megaphone, Package, Coins, Shirt, UserCircle, UserRound, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clapperboard, Film, FolderOpen, LayoutGrid, LifeBuoy, LogOut, Loader2, Mail, Megaphone, Package, Coins, Shirt, UserCircle, UserRound, Sparkles } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { supabase, cloudConfigured } from "@/lib/supabase";
 import { PLAN_ITEMS, PLAN_ITEMS_YEARLY, billingItem, planVariant, type BillingItem } from "@/lib/billing";
@@ -21,8 +21,10 @@ import { LogoWordmark } from "@/components/logo";
 // Storyboard plans multi-scene ads that feed the Studio), the Library (your
 // products, presenters, wardrobe and uploads — what the ads are made from),
 // and the finished ads at the bottom.
-// `short` is the label used on the compact mobile bar (7 items must fit).
-const NAV_GROUPS: { label: string; items: { href: string; label: string; short?: string; icon: typeof Clapperboard }[] }[] = [
+// `short` is the label used on the compact mobile bar (7 items must fit);
+// `bar: false` keeps an item off that bar (mobile reaches it elsewhere —
+// Support also lives in the Account sheet).
+const NAV_GROUPS: { label: string; items: { href: string; label: string; short?: string; bar?: boolean; icon: typeof Clapperboard }[] }[] = [
   {
     label: "Create",
     items: [
@@ -44,9 +46,13 @@ const NAV_GROUPS: { label: string; items: { href: string; label: string; short?:
     label: "Results",
     items: [{ href: "/app/videos", label: "My Ads", short: "Ads", icon: Film }],
   },
+  {
+    label: "Help",
+    items: [{ href: "/app/support", label: "Support", bar: false, icon: LifeBuoy }],
+  },
 ];
 // Flat list for the mobile bar (can't show group headers) — one source of truth.
-const NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
+const NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items).filter((i) => i.bar !== false);
 
 /** UGC Ads is the index route — it also owns /app/ugc deep links; the rest
  *  (including the Studio at /app/make) match by prefix. */

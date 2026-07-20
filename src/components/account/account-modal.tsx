@@ -313,6 +313,15 @@ export function AccountModal({ open, onClose }: { open: boolean; onClose: () => 
           )}
 
           {error && <p className="text-sm text-danger">{error}</p>}
+
+          {/* Support — billing questions start here, so the door is here too. */}
+          <a
+            href="/app/support"
+            onClick={onClose}
+            className="block rounded-2xl border border-line p-4 text-[13px] text-muted transition-colors hover:border-accent/50 hover:text-fg"
+          >
+            Need help with anything? <span className="font-medium text-accent-2">Contact support →</span>
+          </a>
         </div>
       )}
     </Modal>
