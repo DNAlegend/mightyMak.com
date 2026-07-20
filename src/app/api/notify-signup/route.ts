@@ -10,7 +10,9 @@ import { NextResponse } from "next/server";
 // address — exactly this use case. NOTIFY_EMAIL overrides the recipient.
 
 const RECIPIENT = process.env.NOTIFY_EMAIL ?? "abuaisha.hussin@gmail.com";
-const FROM = process.env.NOTIFY_FROM ?? "VIBVID <onboarding@resend.dev>";
+// The Resend account already sends the auth emails for vibvid.ai, so the
+// domain is verified — send from it (NOTIFY_FROM overrides if needed).
+const FROM = process.env.NOTIFY_FROM ?? "VIBVID <notifications@vibvid.ai>";
 
 export async function POST(req: Request) {
   const secret = process.env.SIGNUP_NOTIFY_SECRET;
